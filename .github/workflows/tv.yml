@@ -1,12 +1,14 @@
-name: Atualizar TV (contribuicoes reais)
+name: Atualizar Estudio Canal 04
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # todo dia, 03:00 no horario de Brasilia
+    - cron: "0 6 * * *"   # todo dia, 03:00 BRT
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["scripts/generate-tv.ps1"]
+    paths:
+      - "scripts/generate-tv.ps1"
+      - "scripts/build-panels.ps1"
 
 permissions:
   contents: write
@@ -17,17 +19,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Gerar GIF com as contribuicoes do dia
+      - name: Atualizar TV 2.5D e telemetria do console
         shell: powershell
-        run: ./scripts/generate-tv.ps1 -User "${{ github.repository_owner }}"
+        run: |
+          ./scripts/build-panels.ps1 -User "${{ github.repository_owner }}"
+          ./scripts/generate-tv.ps1 -User "${{ github.repository_owner }}"
 
-      - name: Commitar se mudou
+      - name: Publicar se houve mudanca
         shell: bash
         run: |
-          git config user.name "vico-04[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/tv-truman-grid.gif
-          git diff --cached --quiet && echo "Nada mudou na grade." && exit 0
-          git commit -m "chore(tv): Vico-04 atualizou a grade do dia"
+          git config user.name "Iago Expedito"
+          git config user.email "261275987+expeditodeviago@users.noreply.github.com"
+          git add assets/
+          git diff --cached --quiet && echo "Sinal inalterado." && exit 0
+          git commit -m "chore(studio): atualizar grade 2.5D e telemetria do Canal 04"
           git push
-

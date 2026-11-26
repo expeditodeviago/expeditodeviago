@@ -1,5 +1,5 @@
-# Gera assets/tv-truman-grid.gif usando as contribuicoes REAIS do GitHub
-# Com 5 cenas completas de interacao do Vico-04 com os quadradinhos verdes.
+﻿# Gera assets/tv-truman-grid.gif em pixel art 2.5D detalhada (340x200 -> 680x400)
+# usando as contribuicoes REAIS do GitHub e tipografia pixelada VT323.
 param(
     [string]$User = "expeditodeviago",
     [string]$OutPath = "",
@@ -10,10 +10,11 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 if (-not $OutPath) { $OutPath = Join-Path $root "assets\tv-truman-grid.gif" }
+$fontPath = Join-Path $root "design\VT323-Regular.ttf"
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutPath) | Out-Null
 if ($PreviewDir) { New-Item -ItemType Directory -Force -Path $PreviewDir | Out-Null }
 
-# ---------- 1. Contribuicoes reais (pagina publica do calendario) ----------
+# ---------- 1. Ler contribuicoes reais do GitHub ----------
 $html = (Invoke-WebRequest -UseBasicParsing "https://github.com/users/$User/contributions").Content
 $cells = @{}
 foreach ($m in [regex]::Matches($html, 'data-date="(\d{4}-\d{2}-\d{2})"[^>]*?data-level="(\d)"')) {
@@ -23,7 +24,7 @@ if ($cells.Count -eq 0) { throw "Nao consegui ler o calendario de contribuicoes.
 $totalMatch = [regex]::Match($html, '([\d,\.]+)\s+contributions?\s+in the last year')
 $total = if ($totalMatch.Success) { [int]($totalMatch.Groups[1].Value -replace '[,\.]', '') } else { 0 }
 
-$WEEKS = 21
+$WEEKS = 18
 $lastDate = [datetime]::ParseExact(($cells.Keys | Sort-Object | Select-Object -Last 1), "yyyy-MM-dd", $null)
 $lastWeekStart = $lastDate.AddDays(-[int]$lastDate.DayOfWeek)
 $firstWeekStart = $lastWeekStart.AddDays(-7 * ($WEEKS - 1))
@@ -31,514 +32,737 @@ $levels = New-Object int[] ($WEEKS * 7)
 for ($w = 0; $w -lt $WEEKS; $w++) {
     for ($d = 0; $d -lt 7; $d++) {
         $key = $firstWeekStart.AddDays($w * 7 + $d).ToString("yyyy-MM-dd")
-        $levels[$w * 7 + $d] = if ($cells.ContainsKey($key)) { $cells[$key] } else { -1 }
+        $levels[$w * 7 + $d] = if ($cells.ContainsKey($key)) { $cells[$key] } else { 0 }
     }
 }
 Write-Output "Contribuicoes no ano: $total | janela: $($firstWeekStart.ToString('yyyy-MM-dd')) -> $($lastDate.ToString('yyyy-MM-dd'))"
 
-# ---------- 2. Renderizador pixel art (5 cenas de interacao) ----------
+# ---------- 2. Engine Pixel Art 2.5D ----------
 $code = @'
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.IO;
 using System.Windows.Media.Imaging;
 
-public class PixelTvRich
+public class TrumanTvStudio
 {
-    const int W = 220, H = 128, SCALE = 3, WEEKS = 21;
+    const int W = 340, H = 204, SCALE = 2, WEEKS = 18;
     static Color C(string h) { return ColorTranslator.FromHtml(h); }
 
-    static readonly Color BgDark = C("#0d1117"), BgStars = C("#161b22");
-    static readonly Color GhEmpty = C("#161b22"), GhG1 = C("#0e4429"), GhG2 = C("#006d32"), GhG3 = C("#26a641"), GhG4 = C("#39d353"), GhHi = C("#7ee787");
-    static readonly Color WoodDark = C("#3b2112"), WoodMid = C("#5c3620"), WoodLight = C("#7a492c");
-    static readonly Color BezelDark = C("#1c2128"), BezelMid = C("#2d333b"), BezelLight = C("#444c56"), PanelBg = C("#22272e");
-    static readonly Color MetalLight = C("#adbac7"), MetalDark = C("#636e7b");
-    static readonly Color SkyTop = C("#090d16"), SkyBot = C("#111827"), WireBlue = C("#1f6feb");
-    static readonly Color Cyan = C("#58a6ff"), Amber = C("#f0883e"), Red = C("#f85149"), Yellow = C("#f1e05a"), White = C("#f0f6fc"), Purple = C("#d2a8ff");
-    static readonly Color CoatDark = C("#161922"), CoatMid = C("#262b38"), CoatTrim = C("#3b4354");
-    static readonly Color BotHead = C("#373e47"), BotHeadLight = C("#545d68"), VisorBg = C("#0a0c10");
+    // Studio & Desk Palette
+    static readonly Color BgStudio = C("#0d1117");
+    static readonly Color DeskTop = C("#161c26");
+    static readonly Color DeskEdge = C("#263042");
+    static readonly Color DeskShadow = C("#080b10");
 
-    static Dictionary<char, string[]> Font = new Dictionary<char, string[]>();
-    static void A(char c, params string[] r) { Font[c] = r; }
-    static PixelTvRich()
+    // Walnut Wood & Brushed Trinitron Hardware
+    static readonly Color WoodHi = C("#9c623c");
+    static readonly Color WoodLight = C("#7d4b2b");
+    static readonly Color WoodMid = C("#5e361d");
+    static readonly Color WoodDark = C("#3d2110");
+    static readonly Color WoodDeep = C("#241207");
+    static readonly Color BrassFoot = C("#b8863b");
+
+    static readonly Color SilverHi = C("#d0d7de");
+    static readonly Color SilverMid = C("#8b949e");
+    static readonly Color SilverDark = C("#484f58");
+    static readonly Color BezelOuter = C("#21262d");
+    static readonly Color BezelInner = C("#11151c");
+    static readonly Color PanelDark = C("#181d24");
+
+    // CRT Screen & 2.5D Grid Colors
+    static readonly Color SkyTop = C("#070c16");
+    static readonly Color SkyMid = C("#0d1729");
+    static readonly Color SkyBot = C("#13233b");
+    static readonly Color DomeHex = C("#1f6feb");
+    static readonly Color DomeGlow = C("#58a6ff");
+
+    static readonly Color FloorTop = C("#13222b");
+    static readonly Color FloorEdge = C("#0b151b");
+    static readonly Color FloorLine = C("#1d3340");
+
+    // GitHub Emerald 3D Extruded Blocks
+    static readonly Color[] TopCol = { C("#13222b"), C("#145332"), C("#1e8244"), C("#2ea043"), C("#39d353") };
+    static readonly Color[] FrontCol = { C("#0b151b"), C("#0e3a23"), C("#14592f"), C("#1f6f30"), C("#26a641") };
+    static readonly Color[] RimCol = { C("#1d3340"), C("#1e6f43"), C("#2ea043"), C("#56d364"), C("#7ee787") };
+
+    // Accents & Character
+    static readonly Color Cyan = C("#58a6ff");
+    static readonly Color CyanHi = C("#a5d6ff");
+    static readonly Color Amber = C("#f0b429");
+    static readonly Color Red = C("#ff5f56");
+    static readonly Color YellowNote = C("#f7d154");
+    static readonly Color NoteInk = C("#1c1917");
+    static readonly Color White = C("#f0f6fc");
+
+    static readonly Color CoatDark = C("#171e2b");
+    static readonly Color CoatMid = C("#253147");
+    static readonly Color CoatHi = C("#3b4d6e");
+    static readonly Color HelmetDark = C("#2a323d");
+    static readonly Color HelmetMid = C("#434e5e");
+    static readonly Color HelmetHi = C("#6e7c91");
+    static readonly Color VisorBlack = C("#080b10");
+
+    static PrivateFontCollection Pfc;
+    static Font FontSmall, FontMed, FontBig;
+    static int[] Levels;
+    static int Total;
+    static int TargetA, TargetB;
+
+    public static void InitFonts(string ttfPath)
     {
-        A('A',"010","101","111","101","101"); A('B',"110","101","110","101","110"); A('C',"011","100","100","100","011");
-        A('D',"110","101","101","101","110"); A('E',"111","100","110","100","111"); A('F',"111","100","110","100","100");
-        A('G',"011","100","101","101","011"); A('H',"101","101","111","101","101"); A('I',"111","010","010","010","111");
-        A('J',"001","001","001","101","010"); A('K',"101","101","110","101","101"); A('L',"100","100","100","100","111");
-        A('M',"10001","11011","10101","10001","10001"); A('N',"1001","1101","1011","1001","1001"); A('O',"010","101","101","101","010");
-        A('P',"110","101","110","100","100"); A('Q',"010","101","101","111","001"); A('R',"110","101","110","101","101");
-        A('S',"011","100","010","001","110"); A('T',"111","010","010","010","010"); A('U',"101","101","101","101","111");
-        A('V',"101","101","101","101","010"); A('W',"10001","10001","10101","11011","10001"); A('X',"101","101","010","101","101");
-        A('Y',"101","101","010","010","010"); A('Z',"111","001","010","100","111");
-        A('0',"111","101","101","101","111"); A('1',"010","110","010","010","111"); A('2',"110","001","010","100","111");
-        A('3',"110","001","010","001","110"); A('4',"101","101","111","001","001"); A('5',"111","100","110","001","110");
-        A('6',"011","100","111","101","111"); A('7',"111","001","010","010","010"); A('8',"111","101","111","101","111");
-        A('9',"111","101","111","001","110"); A(':',"0","1","0","1","0"); A('.',"0","0","0","0","1"); A(',',"0","0","0","1","1");
-        A('+',"000","010","111","010","000");
-        A('!',"1","1","1","0","1"); A('?',"110","001","010","000","010"); A('-',"000","000","111","000","000");
-        A('/',"001","001","010","100","100"); A('$',"00100","00100","10101","01110","00100"); A(' ',"00","00","00","00","00");
+        Pfc = new PrivateFontCollection();
+        Pfc.AddFontFile(ttfPath);
+        FontSmall = new Font(Pfc.Families[0], 12f, FontStyle.Regular, GraphicsUnit.Pixel);
+        FontMed = new Font(Pfc.Families[0], 14f, FontStyle.Regular, GraphicsUnit.Pixel);
+        FontBig = new Font(Pfc.Families[0], 16f, FontStyle.Regular, GraphicsUnit.Pixel);
     }
 
-    static void Px(Bitmap b, int x, int y, Color c) { if (x >= 0 && x < W && y >= 0 && y < H) b.SetPixel(x, y, c); }
-    static void Fill(Bitmap b, int x, int y, int w, int h, Color c) { for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) Px(b, x + i, y + j, c); }
+    static void Px(Bitmap b, int x, int y, Color c)
+    {
+        if (x >= 0 && x < W && y >= 0 && y < H) b.SetPixel(x, y, c);
+    }
+
+    static void Fill(Bitmap b, int x, int y, int w, int h, Color c)
+    {
+        int x0 = Math.Max(0, x), y0 = Math.Max(0, y);
+        int x1 = Math.Min(W, x + w), y1 = Math.Min(H, y + h);
+        for (int j = y0; j < y1; j++)
+            for (int i = x0; i < x1; i++)
+                b.SetPixel(i, j, c);
+    }
+
     static void Rect(Bitmap b, int x, int y, int w, int h, Color c)
     {
         for (int i = 0; i < w; i++) { Px(b, x + i, y, c); Px(b, x + i, y + h - 1, c); }
         for (int j = 0; j < h; j++) { Px(b, x, y + j, c); Px(b, x + w - 1, y + j, c); }
     }
-    static int Measure(string t)
+
+    static void Line(Bitmap b, int x0, int y0, int x1, int y1, Color c)
     {
-        int w = 0;
-        foreach (char r in t.ToUpperInvariant()) { char ch = Font.ContainsKey(r) ? r : ' '; w += Font[ch][0].Length + 1; }
-        return w > 0 ? w - 1 : 0;
-    }
-    static void Text(Bitmap b, string t, int x, int y, Color c)
-    {
-        int cx = x;
-        foreach (char r in t.ToUpperInvariant())
+        int dx = Math.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        int dy = -Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+        while (true)
         {
-            char ch = Font.ContainsKey(r) ? r : ' ';
-            string[] rows = Font[ch];
-            for (int j = 0; j < 5; j++) for (int i = 0; i < rows[j].Length; i++) if (rows[j][i] == '1') Px(b, cx + i, y + j, c);
-            cx += rows[0].Length + 1;
+            Px(b, x0, y0, c);
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
         }
     }
-    static void TextC(Bitmap b, string t, int cx, int y, Color c) { Text(b, t, cx - Measure(t) / 2, y, c); }
 
-    static Color Lvl(int l)
+    static void FillCircle(Bitmap b, int cx, int cy, int r, Color c)
     {
-        switch (l) { case 1: return GhG1; case 2: return GhG2; case 3: return GhG3; case 4: return GhG4; default: return GhEmpty; }
+        for (int dy = -r; dy <= r; dy++)
+            for (int dx = -r; dx <= r; dx++)
+                if (dx * dx + dy * dy <= r * r + 1)
+                    Px(b, cx + dx, cy + dy, c);
     }
 
-    static int[] Levels;
-    static int Total;
-    static int TargetA, TargetB, TargetC;
-
-    const int TILE = 5, PITCH = 6;
-    static int GridX(int sx) { return sx + (130 - (WEEKS * PITCH - 1)) / 2; }
-    static int GridY(int sy) { return sy + 33; }
-    static void CellCenter(int idx, int sx, int sy, out int cx, out int cy)
+    static void DrawCircle(Bitmap b, int cx, int cy, int r, Color c)
     {
-        int w = idx / 7, d = idx % 7;
-        cx = GridX(sx) + w * PITCH + TILE / 2;
-        cy = GridY(sy) + d * PITCH + TILE / 2;
+        for (int dy = -r; dy <= r; dy++)
+            for (int dx = -r; dx <= r; dx++)
+            {
+                int d2 = dx * dx + dy * dy;
+                if (d2 <= r * r + 1 && d2 >= (r - 1) * (r - 1))
+                    Px(b, cx + dx, cy + dy, c);
+            }
+    }
+
+    static void DrawPixelText(Bitmap b, string text, Font f, int x, int y, Color col, bool center = false)
+    {
+        using (Graphics g = Graphics.FromImage(b))
+        {
+            g.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
+            g.SmoothingMode = SmoothingMode.None;
+            if (center)
+            {
+                SizeF sz = g.MeasureString(text, f);
+                x = x - (int)(sz.Width / 2f);
+            }
+            using (Brush br = new SolidBrush(col))
+                g.DrawString(text, f, br, x, y);
+        }
     }
 
     static void ChooseTargets()
     {
         List<int> active = new List<int>();
         for (int i = 0; i < Levels.Length; i++) if (Levels[i] > 0) active.Add(i);
-
-        if (active.Count >= 3)
+        if (active.Count >= 2)
         {
-            TargetA = active[active.Count / 4];
-            TargetB = active[active.Count / 2];
-            TargetC = active[active.Count - 1];
+            TargetA = active[active.Count / 3];
+            TargetB = active[active.Count - 1];
+            if (TargetB == TargetA && active.Count > 1) TargetA = active[0];
         }
         else
         {
-            TargetA = 4 * 7 + 3;
-            TargetB = 10 * 7 + 2;
-            TargetC = 16 * 7 + 4;
+            TargetA = 5 * 7 + 3;
+            TargetB = 13 * 7 + 2;
         }
     }
 
-    static void DrawTv(Bitmap b, int f, int ox, int oy, bool glitch, bool alert, string chText)
+    // 2.5D Grid Coordinates inside CRT (sx=52, sy=26, sw=190, sh=140)
+    static void TilePos(int idx, int sx, int sy, out int tx, out int ty)
     {
-        Fill(b, 0, 0, W, H, BgDark);
-        int[,] stars = { {8,20}, {14,88}, {208,30}, {212,95}, {10,112}, {204,14} };
-        for (int i = 0; i < stars.GetLength(0); i++) Px(b, stars[i,0], stars[i,1], ((f + i * 3) % 8 < 4) ? GhG1 : BgStars);
-        Fill(b, 28, 121, 164, 4, C("#06080b"));
-
-        int ax = 95 + ox, ay = 12 + oy;
-        Fill(b, ax - 8, ay - 2, 16, 3, BezelMid);
-        for (int i = 0; i < 10; i++)
-        {
-            Px(b, ax - 4 - i * 2, ay - 2 - i, MetalDark); Px(b, ax - 3 - i * 2, ay - 2 - i, MetalLight);
-            Px(b, ax + 4 + i * 2, ay - 2 - i, MetalDark); Px(b, ax + 3 + i * 2, ay - 2 - i, MetalLight);
-        }
-        Fill(b, ax - 24, ay - 12, 2, 2, Red); Fill(b, ax + 22, ay - 12, 2, 2, Red);
-        if (glitch) for (int x = ax - 18; x <= ax + 18; x += 3) Px(b, x, ay - 10 + ((x + f) % 3 - 1), Cyan);
-
-        Fill(b, 38 + ox, 118 + oy, 12, 4, WoodDark); Fill(b, 170 + ox, 118 + oy, 12, 4, WoodDark);
-        int tx = 22 + ox, ty = 12 + oy, tw = 176, th = 106;
-        Fill(b, tx + 2, ty, tw - 4, th, WoodMid); Fill(b, tx, ty + 2, tw, th - 4, WoodMid);
-        for (int y = ty + 4; y < ty + th - 4; y += 6) { Fill(b, tx + 2, y, tw - 4, 1, WoodDark); Fill(b, tx + 2, y + 2, tw - 4, 1, WoodLight); }
-        Fill(b, tx + 3, ty + 1, tw - 6, 2, WoodLight); Fill(b, tx + 3, ty + th - 3, tw - 6, 2, WoodDark);
-        Fill(b, tx + 6, ty + 6, tw - 12, th - 12, BezelDark); Rect(b, tx + 6, ty + 6, tw - 12, th - 12, BezelLight);
-
-        int px = tx + 140, py = ty + 8;
-        Fill(b, px, py, 28, th - 16, PanelBg); Rect(b, px, py, 28, th - 16, BezelMid);
-        Fill(b, px + 4, py + 5, 20, 11, VisorBg); Rect(b, px + 4, py + 5, 20, 11, BezelLight);
-        Text(b, glitch ? "ER" : chText, px + 9, py + 8, glitch ? Red : GhG4);
-
-        // Knobs rotate slightly by scene
-        Fill(b, px + 9, py + 21, 10, 14, MetalDark); Fill(b, px + 8, py + 22, 12, 12, MetalLight);
-        if ((f / 18) % 2 == 0) Fill(b, px + 13, py + 23, 2, 10, BezelDark);
-        else Fill(b, px + 9, py + 27, 10, 2, BezelDark);
-
-        Fill(b, px + 8, py + 40, 12, 12, MetalDark); Fill(b, px + 9, py + 41, 10, 10, MetalLight);
-        Fill(b, px + 10, py + 45, 8, 2, BezelDark);
-
-        for (int sy = py + 58; sy < py + 76; sy += 3) Fill(b, px + 5, sy, 18, 1, VisorBg);
-        Fill(b, px + 12, py + 80, 4, 4, alert ? ((f % 2 == 0) ? Red : Amber) : GhG4);
+        int w = idx / 7, d = idx % 7;
+        int baseX = sx + 12 + (6 - d) * 1; // subtle 2.5D perspective slant!
+        int baseY = sy + 78;
+        tx = baseX + w * 9;
+        ty = baseY + d * 8;
     }
 
-    // Pose: 0=normal/walk, 1=blade slash, 2=pushing block, 3=sitting with coffee
-    static void Vico(Bitmap b, int x, int y, int dir, int step, int pose, bool mug, bool sus, bool swordOut)
+    static void DrawDeskAndProps(Bitmap b, int f)
     {
-        int py = y + ((step % 2 == 1) ? -1 : 0);
-        if (pose == 3) py = y + 3; // sitting lower on a green cube!
+        Fill(b, 0, 0, W, H, BgStudio);
 
-        Fill(b, x + 2, y + 20, 12, 2, C("#090c10"));
+        // Subtle ambient studio glow behind TV
+        for (int r = 115; r > 70; r -= 15)
+            DrawCircle(b, W / 2, 98, r, C("#101822"));
 
-        // Katana-wrench on back if not drawn in hand
-        if (!swordOut)
+        // Desk surface
+        Fill(b, 10, 180, W - 20, 18, DeskTop);
+        Fill(b, 10, 180, W - 20, 2, DeskEdge);
+        Fill(b, 4, 198, W - 8, 6, BgStudio);
+        Fill(b, 38, 182, 264, 5, DeskShadow); // TV shadow on desk
+
+        // Prop Left: Stacked VHS cassettes on the desk
+        Fill(b, 12, 168, 24, 6, C("#1f2633")); Rect(b, 12, 168, 24, 6, C("#343f52"));
+        Fill(b, 15, 170, 12, 2, Amber);
+        Fill(b, 10, 174, 26, 6, C("#191f2a")); Rect(b, 10, 174, 26, 6, C("#2d3748"));
+        Fill(b, 13, 176, 14, 2, Red);
+
+        // Prop Right: Pixel Succulent Plant in Terracotta Pot + Desk Mug
+        Fill(b, 308, 170, 14, 10, C("#9c4a2d")); // pot
+        Fill(b, 306, 168, 18, 3, C("#b85a3a"));  // pot rim
+        FillCircle(b, 315, 164, 5, C("#1e8244"));
+        FillCircle(b, 312, 163, 3, C("#39d353"));
+        FillCircle(b, 318, 165, 3, C("#2ea043"));
+        Px(b, 314, 161, C("#7ee787"));
+    }
+
+    static void DrawCabinetAndControls(Bitmap b, int f, int ox, int oy, bool glitch, bool alert)
+    {
+        int tx = 40 + ox, ty = 16 + oy, tw = 260, th = 164;
+
+        // Rabbit-ear Chrome Antenna on top
+        int ax = tx + 112, ay = ty;
+        Line(b, ax - 4, ay, ax - 36, ay - 14, SilverDark);
+        Line(b, ax - 3, ay, ax - 35, ay - 14, SilverHi);
+        Line(b, ax + 4, ay, ax + 38, ay - 13, SilverDark);
+        Line(b, ax + 5, ay, ax + 39, ay - 13, SilverHi);
+        FillCircle(b, ax - 36, ay - 14, 2, Red);
+        FillCircle(b, ax + 39, ay - 13, 2, Red);
+        Fill(b, ax - 12, ay - 3, 24, 4, BezelOuter);
+        Rect(b, ax - 12, ay - 3, 24, 4, SilverDark);
+        if (glitch)
         {
-            Px(b, x + 1, py + 1, Cyan); Px(b, x + 2, py + 2, MetalLight); Px(b, x + 3, py + 3, MetalDark); Px(b, x + 4, py + 4, MetalLight);
-            Px(b, x + 13, py + 14, MetalDark); Px(b, x + 14, py + 15, Cyan);
+            for (int x = ax - 26; x <= ax + 26; x += 4)
+                Px(b, x, ay - 11 + ((x + f) % 3 - 1), CyanHi);
         }
 
-        if (pose == 3)
+        // Brass / Wood Feet
+        Fill(b, tx + 20, ty + th, 22, 4, WoodDeep);
+        Fill(b, tx + 22, ty + th + 2, 18, 2, BrassFoot);
+        Fill(b, tx + tw - 42, ty + th, 22, 4, WoodDeep);
+        Fill(b, tx + tw - 40, ty + th + 2, 18, 2, BrassFoot);
+
+        // Outer Rounded Walnut Wood Cabinet
+        Fill(b, tx + 3, ty, tw - 6, th, WoodMid);
+        Fill(b, tx, ty + 3, tw, th - 6, WoodMid);
+        Fill(b, tx + 1, ty + 1, tw - 2, th - 2, WoodMid);
+
+        // Wood Grain Texture & Bevel Shading
+        for (int y = ty + 3; y < ty + th - 3; y += 5)
         {
-            // Sitting legs swinging!
-            int swing = (step % 2 == 0) ? 1 : 0;
-            Fill(b, x + 4, y + 17 + swing, 3, 3, VisorBg);
-            Fill(b, x + 9, y + 18 - swing, 3, 3, VisorBg);
+            Fill(b, tx + 2, y, tw - 4, 1, WoodDark);
+            if (y % 10 == 3) Fill(b, tx + 4, y + 2, tw - 8, 1, WoodLight);
         }
-        else
+        Fill(b, tx + 4, ty + 1, tw - 8, 2, WoodHi);       // top highlight
+        Fill(b, tx + 4, ty + th - 3, tw - 8, 2, WoodDeep); // bottom shadow
+        Line(b, tx + 2, ty + 2, tx + 9, ty + 9, WoodDeep); // mitered corner seams
+        Line(b, tx + tw - 3, ty + 2, tx + tw - 10, ty + 9, WoodDeep);
+
+        // Inner Brushed Trinitron Bezel
+        Fill(b, tx + 8, ty + 8, tw - 16, th - 16, BezelOuter);
+        Rect(b, tx + 8, ty + 8, tw - 16, th - 16, SilverMid); // signature silver trim!
+        Fill(b, tx + 10, ty + 10, 194, th - 20, BezelInner);
+
+        // Right-Side Control Deck (X: tx+207 .. tx+249)
+        int px = tx + 207, py = ty + 10, pw = 43, ph = th - 20;
+        Fill(b, px, py, pw, ph, PanelDark);
+        Rect(b, px, py, pw, ph, SilverDark);
+
+        // Digital Channel Readout
+        Fill(b, px + 5, py + 5, pw - 10, 16, VisorBlack);
+        Rect(b, px + 5, py + 5, pw - 10, 16, SilverDark);
+        DrawPixelText(b, glitch ? "ERR" : "CH 04", FontSmall, px + pw / 2, py + 6, glitch ? Red : TopCol[4], true);
+
+        // Backlit Analog VU Signal Meter!
+        int vx = px + 5, vy = py + 25, vw = pw - 10, vh = 16;
+        Fill(b, vx, vy, vw, vh, C("#241c0c"));
+        Rect(b, vx, vy, vw, vh, SilverDark);
+        Fill(b, vx + 3, vy + 3, vw - 6, 2, C("#5c481c"));
+        Fill(b, vx + vw - 9, vy + 3, 6, 2, Red);
+        int needleX = vx + vw / 2 + (int)(Math.Sin(f * 0.55) * 9);
+        Line(b, vx + vw / 2, vy + vh - 2, needleX, vy + 4, Amber);
+
+        // Rotary VHF Knob (Shaded Metallic Circle)
+        int k1x = px + pw / 2, k1y = py + 56;
+        FillCircle(b, k1x, k1y + 1, 11, VisorBlack);
+        FillCircle(b, k1x, k1y, 10, SilverDark);
+        FillCircle(b, k1x, k1y, 8, SilverMid);
+        FillCircle(b, k1x - 1, k1y - 1, 6, SilverHi);
+        FillCircle(b, k1x, k1y, 5, BezelOuter);
+        double ang1 = -0.8 + (glitch ? 1.1 : 0.0);
+        Line(b, k1x, k1y, k1x + (int)(Math.Cos(ang1) * 7), k1y + (int)(Math.Sin(ang1) * 7), White);
+
+        // Rotary UHF Knob
+        int k2x = px + pw / 2, k2y = py + 84;
+        FillCircle(b, k2x, k2y + 1, 9, VisorBlack);
+        FillCircle(b, k2x, k2y, 8, SilverDark);
+        FillCircle(b, k2x, k2y, 6, SilverMid);
+        FillCircle(b, k2x, k2y, 4, BezelOuter);
+        double ang2 = 0.6 + (f / 20) * 0.3;
+        Line(b, k2x, k2y, k2x + (int)(Math.Cos(ang2) * 6), k2y + (int)(Math.Sin(ang2) * 6), SilverHi);
+
+        // Speaker Grille Slots
+        for (int sy = py + 100; sy <= py + 122; sy += 4)
         {
-            Fill(b, x + 4, y + 18 + ((step == 1) ? -1 : 0), 3, 3, VisorBg);
-            Fill(b, x + 9, y + 18 + ((step == 3) ? -1 : 0), 3, 3, VisorBg);
+            Fill(b, px + 7, sy, pw - 14, 2, VisorBlack);
         }
 
-        Fill(b, x + 3, py + 9, 10, 9, CoatDark); Fill(b, x + 2, py + 14, 12, 4, CoatDark); Fill(b, x + 4, py + 9, 8, 7, CoatMid);
-        Fill(b, x + 3, py + 8, 10, 2, CoatTrim); Fill(b, x + 7, py + 10, 2, 7, VisorBg);
-        Fill(b, x + 3, py + 1, 10, 7, BotHead); Fill(b, x + 4, py, 8, 1, BotHeadLight);
-        Px(b, x + 2, py + 3, MetalLight); Px(b, x + 13, py + 3, MetalLight);
-        Fill(b, x + 4, py + 3, 8, 3, VisorBg);
+        // Power Switch & Glowing LED
+        Fill(b, px + 9, py + 129, 14, 8, BezelOuter);
+        Rect(b, px + 9, py + 129, 14, 8, SilverDark);
+        Color led = alert ? ((f % 2 == 0) ? Red : Amber) : TopCol[4];
+        FillCircle(b, px + 31, py + 133, 3, led);
+        Px(b, px + 30, py + 132, White);
+    }
 
-        Color eye = sus ? Amber : Cyan;
-        if (dir == 1) { Fill(b, x + 8, py + 4, 3, 2, eye); Px(b, x + 9, py + 4, White); }
-        else if (dir == -1) { Fill(b, x + 5, py + 4, 3, 2, eye); Px(b, x + 6, py + 4, White); }
-        else if (dir == 2) { Fill(b, x + 6, py + 3, 4, 2, Amber); Px(b, x + 7, py + 3, White); }
-        else if (sus) { Fill(b, x + 5, py + 4, 6, 1, Red); Fill(b, x + 7, py + 4, 2, 1, White); }
-        else { Fill(b, x + 6, py + 4, 4, 2, eye); Fill(b, x + 7, py + 4, 2, 1, White); }
+    // Detailed 28px-tall Pixel Art Character (Vico-04)
+    // eyeMode: 0=normal cyan, 1=happy ^^, 2=shocked OO, 3=suspicious squint ¬¬
+    static void DrawVico(Bitmap b, int x, int y, int dir, int walkStep, int eyeMode, bool slash, bool coffee)
+    {
+        int bob = (walkStep == 1 || walkStep == 3) ? -1 : 0;
+        int py = y + bob;
 
-        // Sword/blade slash animation!
-        if (swordOut)
+        // Ground shadow
+        Fill(b, x + 2, y + 26, 14, 2, C("#081016"));
+
+        // Diagonal Glowing Tech-Katana on Back (when not slashing)
+        if (!slash)
         {
-            int sx = (dir >= 0) ? x + 13 : x - 8;
-            Fill(b, sx, py + 6, 7, 2, Cyan);
-            Fill(b, sx + 1, py + 5, 5, 1, White);
-            // Slash arc
-            Px(b, sx + 6, py + 3, Cyan); Px(b, sx + 7, py + 4, White); Px(b, sx + 7, py + 8, Cyan); Px(b, sx + 5, py + 10, GhHi);
+            Line(b, x, py + 2, x + 16, py + 19, SilverDark);
+            Line(b, x + 1, py + 2, x + 17, py + 19, Cyan);
+            Fill(b, x - 1, py + 1, 3, 3, White); // pommel
         }
 
-        // Pushing arms extended
-        if (pose == 2)
+        // Boots (4-step walk cycle)
+        int lOff = (walkStep == 1) ? -2 : (walkStep == 3) ? 1 : 0;
+        int rOff = (walkStep == 3) ? -2 : (walkStep == 1) ? 1 : 0;
+        Fill(b, x + 4 + lOff, y + 23, 4, 4, VisorBlack);
+        Fill(b, x + 4 + lOff, y + 26, 4, 1, SilverMid);
+        Fill(b, x + 10 + rOff, y + 23, 4, 4, VisorBlack);
+        Fill(b, x + 10 + rOff, y + 26, 4, 1, SilverMid);
+
+        // Flowing Longcoat (with fluttering coat-tails!)
+        int tailShift = (walkStep % 2 == 1) ? -dir : 0;
+        Fill(b, x + 2 + tailShift, py + 18, 14, 5, CoatDark);
+        Fill(b, x + 3, py + 11, 12, 11, CoatDark);
+        Fill(b, x + 4, py + 11, 10, 9, CoatMid);
+        // Coat lapels & cyan/brass trim
+        Fill(b, x + 3, py + 10, 12, 2, CoatHi);
+        Fill(b, x + 8, py + 12, 2, 10, VisorBlack);
+        Fill(b, x + 8, py + 16, 2, 2, Amber); // belt clasp
+
+        // Rounded Titanium Helmet (14x10)
+        Fill(b, x + 3, py + 1, 12, 9, HelmetDark);
+        Fill(b, x + 2, py + 2, 14, 7, HelmetMid);
+        Fill(b, x + 4, py, 10, 2, HelmetHi);
+        // Side ear-pods with cyan indicator
+        Fill(b, x + 1, py + 4, 2, 4, SilverMid);
+        Fill(b, x + 15, py + 4, 2, 4, SilverMid);
+        Px(b, x + 1, py + 3, Cyan);
+        Px(b, x + 16, py + 3, Cyan);
+
+        // Dark Visor Window
+        int vx = x + 4 + (dir == 1 ? 1 : (dir == -1 ? -1 : 0));
+        Fill(b, vx, py + 3, 10, 5, VisorBlack);
+
+        // Two Expressive Glowing Eyes inside Visor!
+        if (eyeMode == 1) // happy ^ ^ sipping coffee
         {
-            int ax = (dir >= 0) ? x + 13 : x - 4;
-            Fill(b, ax, py + 10, 4, 2, BotHeadLight);
-            Fill(b, ax, py + 13, 4, 2, BotHeadLight);
+            Px(b, vx + 2, py + 5, CyanHi); Px(b, vx + 3, py + 4, CyanHi); Px(b, vx + 4, py + 5, CyanHi);
+            Px(b, vx + 6, py + 5, CyanHi); Px(b, vx + 7, py + 4, CyanHi); Px(b, vx + 8, py + 5, CyanHi);
+        }
+        else if (eyeMode == 2) // shocked O O
+        {
+            Rect(b, vx + 1, py + 3, 3, 4, Amber);
+            Rect(b, vx + 6, py + 3, 3, 4, Amber);
+        }
+        else if (eyeMode == 3) // suspicious squint ¬ ¬
+        {
+            Fill(b, vx + 1, py + 5, 3, 2, Red); Px(b, vx + 2, py + 5, White);
+            Fill(b, vx + 6, py + 5, 3, 2, Red); Px(b, vx + 7, py + 5, White);
+        }
+        else // normal cute glowing eyes (with natural blink)
+        {
+            Fill(b, vx + 2, py + 4, 2, 3, Cyan); Px(b, vx + 2, py + 4, White);
+            Fill(b, vx + 6, py + 4, 2, 3, Cyan); Px(b, vx + 6, py + 4, White);
         }
 
-        if (mug)
+        // Glowing Crescent Blade Slash!
+        if (slash)
         {
-            int mx = x - 3, my = py + 9;
-            Fill(b, mx, my, 4, 4, White); Px(b, mx - 1, my + 1, White); Px(b, mx - 1, my + 2, White);
-            if (step % 2 == 0) Px(b, mx + 1, my - 2, MetalLight); else Px(b, mx + 2, my - 3, MetalLight);
+            int sx = x + 14;
+            Line(b, sx, py + 13, sx + 11, py + 6, CyanHi);
+            Line(b, sx, py + 14, sx + 11, py + 7, Cyan);
+            DrawCircle(b, sx + 4, py + 11, 9, Cyan);
+            Px(b, sx + 12, py + 4, White);
+            Px(b, sx + 10, py + 15, RimCol[4]);
+        }
+
+        // Steaming Espresso Cup
+        if (coffee)
+        {
+            int mx = x + 14, my = py + 11;
+            Fill(b, mx, my, 5, 5, White);
+            Fill(b, mx + 1, my + 1, 3, 1, WoodMid); // espresso crema!
+            Px(b, mx + 5, my + 1, White); Px(b, mx + 5, my + 3, White);
+            Px(b, mx + 4, my + 2, White);
+            int sOff = (walkStep % 2 == 0) ? 0 : 1;
+            Px(b, mx + 1 + sOff, my - 2, SilverHi);
+            Px(b, mx + 2 - sOff, my - 4, SilverMid);
         }
     }
 
-    static void CloseUp(Bitmap b, int sx, int sy, bool knock, bool remote, int f)
+    // High-Detail Close-Up against the CRT Glass!
+    static void DrawCloseUp(Bitmap b, int sx, int sy, int sw, int sh, bool knocking, bool showStickyNote, int f)
     {
-        int cx = sx + 65, by = sy + 14;
-        for (int i = 0; i < 14; i++) { Fill(b, cx + 16 + i, by + 18 - i, 4, 4, MetalDark); Fill(b, cx + 17 + i, by + 18 - i, 2, 2, Cyan); }
-        Fill(b, cx - 28, by + 30, 56, 36, CoatDark); Fill(b, cx - 24, by + 26, 48, 8, CoatTrim);
-        Fill(b, cx - 20, by + 32, 40, 34, CoatMid); Fill(b, cx - 4, by + 32, 8, 34, VisorBg);
-        Fill(b, cx - 20, by + 2, 40, 28, BotHead); Fill(b, cx - 18, by, 36, 3, BotHeadLight); Rect(b, cx - 20, by + 2, 40, 28, CoatDark);
-        Fill(b, cx - 23, by + 10, 3, 8, MetalLight); Fill(b, cx + 20, by + 10, 3, 8, MetalLight);
-        Fill(b, cx - 16, by + 9, 32, 12, VisorBg); Rect(b, cx - 16, by + 9, 32, 12, CoatTrim);
-        Fill(b, cx - 12, by + 13, 24, 4, Red); Fill(b, cx - 6, by + 13, 12, 4, Amber); Fill(b, cx - 3, by + 14, 6, 2, White);
+        int cx = sx + 54, by = sy + 22;
 
-        if (knock)
+        // Katana hilt over shoulder
+        for (int i = 0; i < 16; i++)
         {
-            int kx = cx + 18, ky = by + 18;
-            Fill(b, kx - 5, ky - 5, 10, 10, BotHeadLight); Rect(b, kx - 5, ky - 5, 10, 10, VisorBg);
-            Fill(b, kx - 6, ky - 9, 12, 1, White); Fill(b, kx - 6, ky + 8, 12, 1, White);
-            Fill(b, kx - 9, ky - 6, 1, 12, White); Fill(b, kx + 8, ky - 6, 1, 12, White);
-            Fill(b, kx - 8, ky - 13, 16, 1, Cyan); Fill(b, kx - 8, ky + 12, 16, 1, Cyan);
-            Fill(b, kx - 13, ky - 8, 1, 16, Cyan); Fill(b, kx + 12, ky - 8, 1, 16, Cyan);
-            Text(b, "TOC!", sx + 8, sy + 18, White);
-            if (f % 2 == 1) Text(b, "TOC!", sx + 96, sy + 18, Yellow);
+            Fill(b, cx + 22 + i, by + 24 - i, 4, 4, SilverDark);
+            Fill(b, cx + 23 + i, by + 25 - i, 2, 2, Cyan);
         }
 
-        if (remote)
+        // Coat Shoulders & Collar
+        Fill(b, cx - 34, by + 44, 68, 76, CoatDark);
+        Fill(b, cx - 26, by + 46, 52, 74, CoatMid);
+        Fill(b, cx - 28, by + 38, 56, 10, CoatHi);
+        Fill(b, cx - 4, by + 46, 8, 74, VisorBlack);
+
+        // Detailed Rounded Helmet
+        Fill(b, cx - 25, by + 6, 50, 36, HelmetDark);
+        Fill(b, cx - 27, by + 10, 54, 28, HelmetMid);
+        Fill(b, cx - 20, by + 3, 40, 5, HelmetHi);
+        Fill(b, cx - 31, by + 15, 4, 13, SilverMid);
+        Fill(b, cx + 27, by + 15, 4, 13, SilverMid);
+        Fill(b, cx - 31, by + 12, 3, 3, Cyan);
+        Fill(b, cx + 28, by + 12, 3, 3, Cyan);
+
+        // Wide Visor with Two Suspicious Glowing Eyes Staring Right at Viewer!
+        Fill(b, cx - 21, by + 13, 42, 18, VisorBlack);
+        Rect(b, cx - 21, by + 13, 42, 18, CoatHi);
+        // Left Eye
+        Fill(b, cx - 15, by + 19, 11, 6, Red);
+        Fill(b, cx - 13, by + 20, 7, 4, Amber);
+        Fill(b, cx - 11, by + 20, 3, 2, White);
+        // Right Eye
+        Fill(b, cx + 4, by + 19, 11, 6, Red);
+        Fill(b, cx + 6, by + 20, 7, 4, Amber);
+        Fill(b, cx + 8, by + 20, 3, 2, White);
+
+        // Palm / Fist Tapping on Inside of CRT Glass!
+        if (knocking)
         {
-            int rx = cx - 26, ry = by + 22;
-            Fill(b, rx, ry, 12, 18, VisorBg); Rect(b, rx, ry, 12, 18, MetalLight);
-            Fill(b, rx + 3, ry + 3, 3, 3, Red); Fill(b, rx + 7, ry + 3, 3, 3, GhG4);
-            Fill(b, rx + 3, ry + 8, 6, 2, MetalDark); Fill(b, rx + 3, ry + 12, 6, 2, MetalDark);
-            // IR beam firing at viewer!
-            Fill(b, rx + 4, ry - 4, 4, 4, Red);
-            Rect(b, rx + 1, ry - 7, 10, 10, Yellow);
-            Text(b, "CLICK!", sx + 8, sy + 20, Red);
+            int kx = cx + 44, ky = by + 30;
+            FillCircle(b, kx, ky, 7, HelmetHi);
+            DrawCircle(b, kx, ky, 7, VisorBlack);
+            DrawCircle(b, kx, ky, 12, White);
+            DrawCircle(b, kx, ky, 18, CyanHi);
+            DrawPixelText(b, "TOC! TOC!", FontBig, kx + 4, ky - 30, YellowNote, true);
+        }
+
+        // Sticky Note Slapped Cleanly Beside Him on the Glass!
+        if (showStickyNote)
+        {
+            int nx = sx + 98, ny = sy + 34, nw = 84, nh = 54;
+            Fill(b, nx + 2, ny + 3, nw, nh, C("#090d14"));
+            Fill(b, nx, ny, nw, nh, YellowNote);
+            Fill(b, nx, ny, nw, 7, C("#e0b638"));
+            Rect(b, nx, ny, nw, nh, C("#b89225"));
+            DrawPixelText(b, "EI, CURIOSO!", FontMed, nx + nw / 2, ny + 9, NoteInk, true);
+            DrawPixelText(b, "OS PROJETOS", FontSmall, nx + nw / 2, ny + 24, NoteInk, true);
+            DrawPixelText(b, "ESTÃO ABAIXO ↓", FontSmall, nx + nw / 2, ny + 36, Red, true);
         }
     }
 
-    static void Subtitle(Bitmap b, int sx, int sy, string t, Color c)
+    static Bitmap RenderFrame(int f)
     {
-        int y = sy + 88 - 11;
-        Fill(b, sx + 2, y, 126, 9, C("#0a0e14")); Rect(b, sx + 2, y, 126, 9, BezelMid);
-        TextC(b, t, sx + 65, y + 2, c);
-    }
+        // 76 Frames across 5 fluid, story-rich acts:
+        //  0..17: Act 1 - Walk across 2.5D grid & polish real commit TargetA with cyan blade
+        // 18..35: Act 2 - Commit cube drops on TargetB, Vico locks it in & takes an espresso break
+        // 36..51: Act 3 - Studio spotlight snaps & crashes! Sky tears open revealing Truman CCTV camera!
+        // 52..60: Act 4 - Vico drops coffee, stares at camera, turns suspiciously & approaches screen
+        // 61..72: Act 5 - Close-up on glass: knocks TOC! TOC! & slaps yellow sticky note on the screen!
+        // 73..75: VHS SMPTE static roll back to frame 0
 
-    static void Sparkle(Bitmap b, int cx, int cy, int r, Color c1, Color c2)
-    {
-        Px(b, cx - r, cy - r, c1); Px(b, cx + r, cy - r, c1); Px(b, cx - r, cy + r, c2); Px(b, cx + r, cy + r, c2);
-        Px(b, cx, cy - r - 1, c1); Px(b, cx, cy + r + 1, c2); Px(b, cx - r - 1, cy, c1); Px(b, cx + r + 1, cy, c2);
-    }
-
-    // 84 Frames across 5 distinct interactive scenes:
-    // 0..17:  Cena 1 - Ronda & Polimento do commit TargetA com lamina energetica (+1 COMMIT)
-    // 18..39: Cena 2 - Bloco verde cai do ceu; Vico-04 EMPURRA o bloco ate TargetB, senta nele e toma cafe!
-    // 40..57: Cena 3 - Um BUG vermelho aparece em TargetC! Vico-04 da um dash com a espada e conserta (FIXED!)
-    // 58..70: Cena 4 - O holofote do estudio DESPENCA no chao + ceu mostra fios e grade azul (Show de Truman!)
-    // 71..80: Cena 5 - Vico-04 encosta no vidro (TOC! TOC!), pega o controle remoto (CLICK!) e puxa a persiana
-    // 81..83: Reset das barras de cor SMPTE
-    static Bitmap Frame(int f)
-    {
         Bitmap b = new Bitmap(W, H, PixelFormat.Format32bppArgb);
-        bool glitch = (f == 41 || f == 59 || f == 60 || f >= 81);
-        bool shake = (f == 19 || f == 59 || f == 72 || f == 74);
-        int ox = shake ? ((f % 2 == 0) ? -1 : 1) : 0, oy = shake ? 1 : 0;
-        string ch = (f < 18) ? "01" : (f < 40) ? "02" : (f < 58) ? "03" : "04";
-        DrawTv(b, f, ox, oy, glitch, f >= 40, ch);
-        int sx = 30 + ox, sy = 20 + oy, sw = 130, sh = 88;
+        bool glitch = (f == 37 || f == 38 || f >= 73);
+        bool shake = (f == 38 || f == 63 || f == 65);
+        int ox = shake ? ((f % 2 == 0) ? -1 : 1) : 0;
+        int oy = shake ? 1 : 0;
 
-        Fill(b, sx, sy, sw, 32, SkyTop); Fill(b, sx, sy + 20, sw, 12, SkyBot);
+        DrawDeskAndProps(b, f);
+        DrawCabinetAndControls(b, f, ox, oy, glitch, f >= 37);
 
-        if (f >= 81)
+        int sx = 52 + ox, sy = 28 + oy, sw = 190, sh = 140;
+
+        // VHS Static & Color Bar Reset (Frames 73..75)
+        if (f >= 73)
         {
-            Color[] bars = { White, Yellow, Cyan, GhG4, Purple, Red, WireBlue };
+            Color[] bars = { White, YellowNote, Cyan, TopCol[4], C("#d2a8ff"), Red, DomeHex };
             int bw = sw / bars.Length;
-            for (int i = 0; i < bars.Length; i++) Fill(b, sx + i * bw, sy, (i == bars.Length - 1) ? sw - i * bw : bw, sh, bars[i]);
-            Random rng = new Random(f * 997);
-            for (int n = 0; n < 180; n++) Fill(b, sx + rng.Next(sw), sy + rng.Next(sh), 3, 1, (n % 2 == 0) ? VisorBg : White);
-            Fill(b, sx + 12, sy + 32, sw - 24, 22, VisorBg); Rect(b, sx + 12, sy + 32, sw - 24, 22, White);
-            TextC(b, "REINICIANDO TURNO...", sx + 65, sy + 36, Yellow);
-            TextC(b, "POR FAVOR AGUARDE", sx + 65, sy + 44, White);
-            Finish(b, sx, sy, sw, sh);
-            return Up(b);
+            for (int i = 0; i < bars.Length; i++)
+                Fill(b, sx + i * bw, sy, (i == bars.Length - 1) ? sw - i * bw : bw, sh, bars[i]);
+            Random rng = new Random(f * 1337);
+            for (int n = 0; n < 260; n++)
+                Fill(b, sx + rng.Next(sw - 4), sy + rng.Next(sh), 4, 1, (n % 2 == 0) ? VisorBlack : White);
+            Fill(b, sx + 28, sy + 52, sw - 56, 34, VisorBlack);
+            Rect(b, sx + 28, sy + 52, sw - 56, 34, SilverHi);
+            DrawPixelText(b, "REBOBINANDO SINAL...", FontMed, sx + sw / 2, sy + 56, Amber, true);
+            DrawPixelText(b, "CANAL 04 // EXP.DEV", FontSmall, sx + sw / 2, sy + 70, TopCol[4], true);
+            ApplyCrtGlass(b, sx, sy, sw, sh);
+            return Upscale(b);
         }
 
-        // Lua falsa pendurada num fio
-        int mx = sx + 104, my = sy + 9;
-        Fill(b, mx + 3, sy, 1, 9, MetalDark); Fill(b, mx, my, 7, 7, Yellow); Fill(b, mx + 4, my + 1, 3, 5, SkyTop);
+        // Studio Sky Gradient
+        Fill(b, sx, sy, sw, 26, SkyTop);
+        Fill(b, sx, sy + 26, sw, 18, SkyMid);
+        Fill(b, sx, sy + 44, sw, 16, SkyBot);
 
-        // Refletor de estudio (cai do teto no frame 58!)
-        int spx = sx + 62;
-        if (f < 58)
+        // Twinkling Studio Stars
+        int[,] st = { {18,16},{42,28},{78,14},{128,22},{168,30},{94,36},{28,40} };
+        for (int i = 0; i < st.GetLength(0); i++)
+            Px(b, sx + st[i,0], sy + st[i,1], ((f + i * 2) % 6 == 0) ? White : SilverDark);
+
+        // Truman Show Torn Sky Panel + Giant Studio CCTV Camera (from Frame 37 onward!)
+        if (f >= 37)
         {
-            Fill(b, spx + 2, sy, 2, 4, MetalDark); Fill(b, spx, sy + 4, 6, 4, BezelLight); Fill(b, spx + 1, sy + 8, 4, 1, Yellow);
+            int holeX = sx + 88, holeY = sy + 6, holeW = 54, holeH = 38;
+            Fill(b, holeX, holeY, holeW, holeH, C("#050912"));
+            for (int gx = holeX; gx < holeX + holeW; gx += 9) Line(b, gx, holeY, gx, holeY + holeH - 1, DomeHex);
+            for (int gy = holeY; gy < holeY + holeH; gy += 8) Line(b, holeX, gy, holeX + holeW - 1, gy, DomeHex);
+            Rect(b, holeX, holeY, holeW, holeH, DomeGlow);
+
+            // Studio CCTV Lens Looking In!
+            Fill(b, holeX + 15, holeY + 10, 24, 16, HelmetDark);
+            Rect(b, holeX + 15, holeY + 10, 24, 16, SilverMid);
+            FillCircle(b, holeX + 27, holeY + 18, 6, VisorBlack);
+            DrawCircle(b, holeX + 27, holeY + 18, 6, SilverHi);
+            FillCircle(b, holeX + 27, holeY + 18, 3, (f % 2 == 0) ? Red : Amber);
+            Px(b, holeX + 26, holeY + 17, White);
         }
 
-        Text(b, "IBOPE " + Total, sx + 4, sy + 12, (f % 8 < 6) ? GhHi : GhG3);
+        // Fake Crescent Moon Hanging on a Wire (placed left of center so HUD is clean)
+        int mx = sx + 74, my = sy + 14;
+        Line(b, mx + 4, sy, mx + 4, my, SilverDark);
+        FillCircle(b, mx + 4, my + 4, 5, YellowNote);
+        FillCircle(b, mx + 6, my + 3, 4, SkyTop);
 
-        // Wireframe azul de simulacao na Cena 4
-        if (f >= 58 && f <= 69)
+        // Left Studio Spotlight on Ceiling Rig
+        Fill(b, sx + 44, sy, 2, 5, SilverDark);
+        Fill(b, sx + 41, sy + 5, 8, 5, SilverMid);
+        Fill(b, sx + 42, sy + 10, 6, 1, YellowNote);
+
+        // Right Studio Spotlight (Hangs until frame 36, then SNAPS & CRASHES!)
+        if (f < 36)
         {
-            for (int gx = sx + 8; gx < sx + sw; gx += 16) Fill(b, gx, sy, 1, 32, WireBlue);
-            for (int gy = sy + 8; gy < sy + 32; gy += 8) Fill(b, sx, gy, sw, 1, WireBlue);
+            Fill(b, sx + 112, sy, 2, 5, SilverDark);
+            Fill(b, sx + 109, sy + 5, 8, 5, SilverMid);
+            Fill(b, sx + 110, sy + 10, 6, 1, YellowNote);
         }
 
-        // Grade REAL de contribuicoes (ultimas 21 semanas)
-        Fill(b, sx, sy + 32, sw, sh - 32, BgDark);
-        Fill(b, sx, sy + 31, sw, 1, GhG2);
-        int gx0 = GridX(sx), gy0 = GridY(sy);
-        for (int i = 0; i < Levels.Length; i++)
+        // 2.5D Isometric Contribution Grid Floor
+        Fill(b, sx, sy + 60, sw, sh - 60, C("#091117"));
+        Fill(b, sx, sy + 59, sw, 1, C("#1e4631"));
+
+        // Draw back-to-front (row 0 to row 6) so taller 3D commit blocks occlude naturally!
+        for (int d = 0; d < 7; d++)
         {
-            int l = Levels[i];
-            if (l < 0) continue;
-            int x = gx0 + (i / 7) * PITCH, y = gy0 + (i % 7) * PITCH;
-            Color c = Lvl(l);
+            for (int w = 0; w < WEEKS; w++)
+            {
+                int idx = w * 7 + d;
+                int lvl = Levels[idx];
+                if (idx == TargetB && f >= 24) lvl = 4; // newly locked commit block!
 
-            if (i == TargetA && f >= 8 && f <= 14) c = (f % 2 == 0) ? GhHi : GhG4;
-            if (i == TargetB && f >= 29) c = GhG4;
-            if (i == TargetC && f >= 40 && f <= 49) c = (f % 2 == 0) ? Red : Amber; // BUG!
-            if (i == TargetC && f >= 50) c = (f <= 54 && f % 2 == 0) ? Cyan : GhHi; // FIXED!
+                int tx, ty;
+                TilePos(idx, sx, sy, out tx, out ty);
+                int extrude = (lvl == 0) ? 0 : (lvl * 3); // 3px, 6px, 9px, 12px 3D height!
 
-            Fill(b, x, y, TILE, TILE, c);
-            if ((l == 4 || (i == TargetB && f >= 29)) && !(i == TargetC && f >= 40 && f <= 49))
-                Fill(b, x, y, TILE, 1, GhHi);
+                bool glowPulse = (idx == TargetA && f >= 9 && f <= 16) || (idx == TargetB && f >= 24 && f <= 30);
+
+                // Extruded Front Wall
+                Fill(b, tx, ty - extrude + 5, 8, extrude + 2, FrontCol[lvl]);
+                // Top Face
+                Color topC = glowPulse && (f % 2 == 0) ? RimCol[4] : TopCol[lvl];
+                Fill(b, tx, ty - extrude, 8, 5, topC);
+                // Top Rim Highlight
+                Fill(b, tx, ty - extrude, 8, 1, RimCol[lvl]);
+                if (lvl == 0)
+                    Rect(b, tx, ty, 8, 5, FloorLine);
+            }
         }
 
-        int ax, ay, bx, by2, cx, cy;
-        CellCenter(TargetA, sx, sy, out ax, out ay);
-        CellCenter(TargetB, sx, sy, out bx, out by2);
-        CellCenter(TargetC, sx, sy, out cx, out cy);
+        int ax, ay, bx, by2;
+        TilePos(TargetA, sx, sy, out ax, out ay);
+        TilePos(TargetB, sx, sy, out bx, out by2);
 
-        // ----- CENA 1: Ronda & Polimento do Commit TargetA (0..17) -----
+        // ----- ACT 1 (0..17): Ronda & Polimento na Grade 2.5D -----
         if (f <= 17)
         {
-            int startX = sx + 8;
-            int vx = (f < 7) ? startX + (ax - 14 - startX) * f / 7 : ax - 14;
-            int vy = ay - 18;
-            bool slash = (f >= 8 && f <= 12);
-            Vico(b, vx, vy, 1, (f < 7) ? f % 4 : 0, slash ? 1 : 0, f >= 14, false, slash);
-            if (slash)
-            {
-                Sparkle(b, ax, ay, 4, Cyan, GhHi);
-                Text(b, "POLINDO!", ax - 10, vy - 7, Cyan);
-            }
-            else if (f >= 13)
-            {
-                Sparkle(b, ax, ay, 3, GhHi, Yellow);
-                Text(b, "+1 COMMIT", ax - 12, vy - 7, GhHi);
-            }
-            Subtitle(b, sx, sy, "ATO 1 // POLINDO OS COMMITS REAIS", GhG4);
-        }
-        // ----- CENA 2: Empurrando um bloco novo + Pausa pro Cafe (18..39) -----
-        else if (f <= 39)
-        {
-            int dropStartX = Math.Max(sx + 18, bx - 32);
-            int vy = by2 - 18;
-            if (f <= 21)
-            {
-                // Bloco cai do ceu em dropStartX
-                int blockY = sy + 4 + (f - 18) * (by2 - 2 - (sy + 4)) / 3;
-                Fill(b, dropStartX, blockY, TILE + 1, TILE + 1, GhG4);
-                Rect(b, dropStartX, blockY, TILE + 1, TILE + 1, GhHi);
-                Vico(b, dropStartX - 14, vy, 1, 0, 0, false, true, false);
-                Text(b, "THUD!", dropStartX - 4, blockY - 7, Yellow);
-            }
-            else if (f <= 29)
-            {
-                // Vico empurra o bloco verde pela grade ate bx!
-                int prog = f - 21;
-                int curBx = dropStartX + (bx - 2 - dropStartX) * prog / 8;
-                Fill(b, curBx, by2 - 2, TILE + 1, TILE + 1, GhG4);
-                Rect(b, curBx, by2 - 2, TILE + 1, TILE + 1, GhHi);
-                Vico(b, curBx - 13, vy, 1, f % 4, 2, false, false, false);
-                if (f % 2 == 0) Text(b, "EMPURRA!", curBx - 12, vy - 7, Yellow);
-            }
-            else
-            {
-                // Sentado em cima do bloco verde tomando cafe!
-                Sparkle(b, bx, by2, 4, GhHi, Yellow);
-                Vico(b, bx - 7, vy - 2, 0, f % 4, 3, true, false, false);
-                Text(b, "CAFEZINHO", bx - 18, vy - 9, White);
-            }
-            Subtitle(b, sx, sy, "ATO 2 // EMPILHANDO BLOCOS E CAFE", Yellow);
-        }
-        // ----- CENA 3: Caça ao Bug na Grade com Espada (40..57) -----
-        else if (f <= 57)
-        {
-            int vy = cy - 18;
-            if (f <= 44)
-            {
-                // Bug piscando em TargetC; Vico se assusta
-                Vico(b, bx - 7, by2 - 18, 1, 0, 0, false, true, true);
-                Sparkle(b, cx, cy, 4, Red, Amber);
-                Text(b, "BUG!", cx - 8, cy - 10, Red);
-            }
-            else if (f <= 49)
-            {
-                // Dash veloz ate TargetC com rastro ciano!
-                int prog = f - 44;
-                int vx = (bx - 7) + ((cx - 14) - (bx - 7)) * prog / 5;
-                int curVy = (by2 - 18) + (vy - (by2 - 18)) * prog / 5;
-                Fill(b, vx - 8, curVy + 8, 8, 2, Cyan); // speed trail
-                Vico(b, vx, curVy, 1, f % 4, 1, false, true, true);
-                Sparkle(b, cx, cy, 4, Red, Yellow);
-            }
-            else
-            {
-                // Golpe final: Bug eliminado!
-                Vico(b, cx - 14, vy, 1, 0, 1, false, false, true);
-                Sparkle(b, cx, cy, 5, Cyan, GhHi);
-                Text(b, "GIT FIX!", cx - 14, vy - 8, GhHi);
-            }
-            Subtitle(b, sx, sy, "ATO 3 // ELIMINANDO BUG DA GRADE!", Red);
-        }
-        // ----- CENA 4: O Holofote Cai do Ceu + Fios da Simulacao (58..70) -----
-        else if (f <= 70)
-        {
-            int spotLandY = sy + 52;
-            int curSpotY = (f < 61) ? sy + 6 + (f - 58) * (spotLandY - (sy + 6)) / 3 : spotLandY;
-            // Fios pendurados no ceu
-            for (int y = sy; y < curSpotY; y += 2) Px(b, spx + 3, y, Cyan);
-            for (int y = sy; y < cy; y += 2) Px(b, cx, y, White);
+            int startX = sx + 14;
+            int destX = Math.Max(sx + 14, ax - 16);
+            int vx = (f < 8) ? startX + (destX - startX) * f / 8 : destX;
+            int vy = ay - 26;
+            bool slashing = (f >= 9 && f <= 13);
+            int eyes = (f == 4 || f == 15) ? 1 : 0;
+            DrawVico(b, vx, vy, 1, (f < 8) ? f % 4 : 0, eyes, slashing, false);
 
-            // Holofote caido no chao soltando faiscas
-            Fill(b, spx, curSpotY, 7, 5, BezelLight);
-            Fill(b, spx + 1, curSpotY + 1, 5, 3, Yellow);
-            if (f >= 61)
+            if (f >= 9 && f <= 16)
             {
-                Sparkle(b, spx + 3, spotLandY + 2, 4, Yellow, Cyan);
-                Text(b, "CRASH!", spx + 6, spotLandY - 9, Yellow);
+                int pLift = (f - 9) * 2;
+                Px(b, ax + 2, ay - 10 - pLift, RimCol[4]);
+                Px(b, ax + 6, ay - 13 - pLift, CyanHi);
+                Px(b, ax + 4, ay - 7 - pLift, YellowNote);
+                DrawPixelText(b, "+1 COMMIT", FontSmall, ax + 4, vy - 10, RimCol[4], true);
             }
-
-            int vx = spx - 18, vy = spotLandY - 14;
-            Vico(b, vx, vy, (f < 65) ? 2 : 0, 0, 0, false, true, false);
-            Fill(b, vx + 6, vy - 9, 5, 7, VisorBg);
-            Text(b, "?", vx + 7, vy - 8, Yellow);
-            Subtitle(b, sx, sy, "ATO 4 // O CEU E FALSO?! FIOS?!", Amber);
+            DrawSubtitle(b, sx, sy, sw, sh, "TURNO DA NOITE // CUIDANDO DOS COMMITS", TopCol[4]);
         }
-        // ----- CENA 5: Quebra da 4a Parede + Controle Remoto + Persiana (71..80) -----
+        // ----- ACT 2 (18..35): Novo Commit Desce no Cabo + Pausa pro Café -----
+        else if (f <= 35)
+        {
+            int destX = Math.Max(sx + 16, bx - 17);
+            int prevX = Math.Max(sx + 14, ax - 16);
+            int vx = (f < 23) ? prevX + (destX - prevX) * (f - 18) / 5 : destX;
+            int vy = by2 - 26;
+            int dir = (destX >= prevX) ? 1 : -1;
+
+            if (f < 24)
+            {
+                // Glowing Commit Cube Descending on Cable
+                int dropY = sy + 12 + (f - 18) * (by2 - 12 - (sy + 12)) / 6;
+                Line(b, bx + 4, sy, bx + 4, dropY, Cyan);
+                Fill(b, bx, dropY, 8, 8, TopCol[4]);
+                Rect(b, bx, dropY, 8, 8, RimCol[4]);
+            }
+            bool sipping = (f >= 26);
+            DrawVico(b, vx, vy, sipping ? 0 : dir, (f < 23) ? f % 4 : (f / 2), sipping ? 1 : 0, false, sipping);
+            if (sipping)
+            {
+                int lblX = Math.Min(sx + sw - 48, Math.Max(sx + 46, vx + 9));
+                DrawPixelText(b, "PAUSA PRO CAFÉ", FontSmall, lblX, vy - 12, White, true);
+            }
+            DrawSubtitle(b, sx, sy, sw, sh, "DEPLOY NO AR // HORA DO EXPRESSO", Amber);
+        }
+        // ----- ACT 3 (36..51): Refletor Despenca do Céu + Câmera Secreta! -----
+        else if (f <= 51)
+        {
+            int crashX = sx + 108, crashY = sy + 96;
+            int curY = (f < 39) ? sy + 10 + (f - 36) * (crashY - (sy + 10)) / 3 : crashY;
+            Line(b, crashX + 4, sy, crashX + 4, sy + 28, SilverDark); // snapped cable dangling!
+            Fill(b, crashX, curY, 9, 6, SilverMid);
+            Fill(b, crashX + 2, curY + 1, 5, 4, YellowNote);
+            if (f >= 39 && f <= 45)
+            {
+                Px(b, crashX - 3, crashY - 3, YellowNote);
+                Px(b, crashX + 11, crashY - 4, CyanHi);
+                DrawPixelText(b, "CRASH!", FontSmall, crashX + 5, crashY - 14, YellowNote, true);
+            }
+            int vx = sx + 78, vy = sy + 76;
+            DrawVico(b, vx, vy, 1, 0, 2, false, false);
+            DrawPixelText(b, "?!", FontMed, vx + 9, vy - 12, Red, true);
+            DrawSubtitle(b, sx, sy, sw, sh, "PERAÍ... O CÉU É UM ESTÚDIO DE TV?!", Red);
+        }
+        // ----- ACT 4 (52..60): Ele Olha Pra Você e Vem Até a Tela -----
+        else if (f <= 60)
+        {
+            int vx = sx + 82, vy = sy + 78 + (f - 52) * 2;
+            DrawVico(b, vx, vy, 0, f % 4, 3, false, false);
+            DrawSubtitle(b, sx, sy, sw, sh, "TEM ALGUÉM ME OLHANDO PELO VIDRO...", Red);
+        }
+        // ----- ACT 5 (61..72): Close-Up no Vidro + TOC TOC + Post-it -----
         else
         {
-            bool knock = (f >= 71 && f <= 74);
-            bool remote = (f >= 75 && f <= 76);
-            CloseUp(b, sx, sy, knock, remote, f);
-            if (f <= 76)
-            {
-                Subtitle(b, sx, sy, "EI! CLICA NOS BOTOES AI EMBAIXO!", Yellow);
-            }
-            else
-            {
-                int bh = (f == 77) ? sh / 2 : sh;
-                for (int y = sy; y < sy + bh; y += 4)
-                {
-                    if (f >= 78 && y >= sy + 24 && y <= sy + 28) continue;
-                    Fill(b, sx, y, sw, 3, BezelMid); Fill(b, sx, y, sw, 1, BezelLight);
-                }
-                Fill(b, sx + sw - 12, sy, 1, bh - 6, White); Fill(b, sx + sw - 13, sy + bh - 6, 3, 4, Yellow);
-                Fill(b, sx + 8, sy + 42, sw - 16, 28, VisorBg); Rect(b, sx + 8, sy + 42, sw - 16, 28, GhG4);
-                TextC(b, "404: PRIVACIDADE", sx + 65, sy + 47, Red);
-                TextC(b, "$ USE O CONTROLE ABAIXO $", sx + 65, sy + 58, GhHi);
-            }
+            bool knock = (f >= 62 && f <= 65);
+            bool note = (f >= 66);
+            DrawCloseUp(b, sx, sy, sw, sh, knock, note, f);
+            DrawSubtitle(b, sx, sy, sw, sh, "CONFIRA OS PROJETOS LOGO ABAIXO ↓", YellowNote);
         }
 
-        if (f < 77)
-        {
-            Text(b, "REC", sx + 4, sy + 3, Red);
-            if (f % 4 < 2) Fill(b, sx + 18, sy + 4, 3, 3, Red);
-            Text(b, "CH-" + ch, sx + sw - 24, sy + 3, GhG4);
-        }
-        Finish(b, sx, sy, sw, sh);
-        return Up(b);
+        // Top Broadcast OSD
+        FillCircle(b, sx + 9, sy + 8, 2, (f % 4 < 2) ? Red : C("#5a1d1d"));
+        DrawPixelText(b, "REC", FontSmall, sx + 14, sy + 2, Red, false);
+        DrawPixelText(b, "COMMITS: " + Total, FontSmall, sx + sw - 64, sy + 2, RimCol[4], false);
+
+        ApplyCrtGlass(b, sx, sy, sw, sh);
+        return Upscale(b);
     }
 
-    static void Finish(Bitmap b, int sx, int sy, int sw, int sh)
+    static void DrawSubtitle(Bitmap b, int sx, int sy, int sw, int sh, string text, Color col)
     {
+        int by = sy + sh - 17;
+        Fill(b, sx + 4, by, sw - 8, 14, C("#080c12"));
+        Rect(b, sx + 4, by, sw - 8, 14, SilverDark);
+        DrawPixelText(b, text, FontSmall, sx + sw / 2, by + 1, col, true);
+    }
+
+    static void ApplyCrtGlass(Bitmap b, int sx, int sy, int sw, int sh)
+    {
+        // Subtle CRT Scanlines
         for (int y = sy; y < sy + sh; y += 2)
+        {
             for (int x = sx; x < sx + sw; x++)
             {
                 Color c = b.GetPixel(x, y);
-                b.SetPixel(x, y, Color.FromArgb(255, (int)(c.R * 0.86), (int)(c.G * 0.86), (int)(c.B * 0.86)));
+                b.SetPixel(x, y, Color.FromArgb(255, (int)(c.R * 0.88), (int)(c.G * 0.88), (int)(c.B * 0.88)));
             }
-        int[,] k = { {sx,sy},{sx+1,sy},{sx,sy+1},{sx+sw-1,sy},{sx+sw-2,sy},{sx+sw-1,sy+1},
-                     {sx,sy+sh-1},{sx+1,sy+sh-1},{sx,sy+sh-2},{sx+sw-1,sy+sh-1},{sx+sw-2,sy+sh-1},{sx+sw-1,sy+sh-2} };
-        for (int i = 0; i < k.GetLength(0); i++) Px(b, k[i,0], k[i,1], BezelDark);
+        }
+
+        // Curved Glass Reflection Glare (top-left diagonal sheen)
+        for (int i = 0; i < 14; i++)
+        {
+            int gx = sx + 5 + i, gy = sy + 18 - i;
+            if (gy >= sy + 4)
+            {
+                Color c = b.GetPixel(gx, gy);
+                b.SetPixel(gx, gy, Color.FromArgb(255, Math.Min(255, c.R + 28), Math.Min(255, c.G + 32), Math.Min(255, c.B + 38)));
+            }
+        }
+
+        // Rounded CRT Tube Mask Corners
+        int[,] mask = {
+            {0,0},{1,0},{2,0},{0,1},{1,1},{0,2},
+            {sw-1,0},{sw-2,0},{sw-3,0},{sw-1,1},{sw-2,1},{sw-1,2},
+            {0,sh-1},{1,sh-1},{2,sh-1},{0,sh-2},{1,sh-2},{0,sh-3},
+            {sw-1,sh-1},{sw-2,sh-1},{sw-3,sh-1},{sw-1,sh-2},{sw-2,sh-2},{sw-1,sh-3}
+        };
+        for (int i = 0; i < mask.GetLength(0); i++)
+            Px(b, sx + mask[i,0], sy + mask[i,1], BezelInner);
     }
 
-    static Bitmap Up(Bitmap src)
+    static Bitmap Upscale(Bitmap src)
     {
         Bitmap dst = new Bitmap(W * SCALE, H * SCALE, PixelFormat.Format32bppArgb);
         using (Graphics g = Graphics.FromImage(dst))
@@ -554,19 +778,20 @@ public class PixelTvRich
     [System.Runtime.InteropServices.DllImport("gdi32.dll")]
     static extern bool DeleteObject(IntPtr h);
 
-    public static void Generate(int[] levels, int total, string gifPath, string previewDir)
+    public static void Generate(string ttfPath, int[] levels, int total, string gifPath, string previewDir)
     {
+        InitFonts(ttfPath);
         Levels = levels; Total = total; ChooseTargets();
-        const int N = 84;
+        const int N = 76;
         int[] delays = new int[N];
         GifBitmapEncoder enc = new GifBitmapEncoder();
         for (int f = 0; f < N; f++)
         {
-            delays[f] = (f == 16 || f == 38 || f == 55 || f == 68 || f == 76) ? 26 : (f >= 78 && f <= 80) ? 34 : 13;
-            using (Bitmap bmp = Frame(f))
+            delays[f] = (f == 15 || f == 33 || f == 48 || f == 59) ? 24 : (f >= 67 && f <= 72) ? 32 : 12;
+            using (Bitmap bmp = RenderFrame(f))
             {
-                if (!string.IsNullOrEmpty(previewDir) && (f == 10 || f == 26 || f == 34 || f == 52 || f == 63 || f == 75))
-                    bmp.Save(Path.Combine(previewDir, "rich_" + f.ToString("D2") + ".png"), ImageFormat.Png);
+                if (!string.IsNullOrEmpty(previewDir) && (f == 11 || f == 29 || f == 42 || f == 64 || f == 69 || f == 74))
+                    bmp.Save(Path.Combine(previewDir, "tv_" + f.ToString("D2") + ".png"), ImageFormat.Png);
                 IntPtr hb = bmp.GetHbitmap();
                 try
                 {
@@ -606,5 +831,5 @@ public class PixelTvRich
 
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase, System.Xaml, System.Drawing
 Add-Type -TypeDefinition $code -ReferencedAssemblies System.Drawing, PresentationCore, PresentationFramework, WindowsBase, System.Xaml
-[PixelTvRich]::Generate($levels, $total, $OutPath, $PreviewDir)
+[TrumanTvStudio]::Generate($fontPath, $levels, $total, $OutPath, $PreviewDir)
 Write-Output "GIF gerado: $OutPath ($((Get-Item $OutPath).Length) bytes)"
