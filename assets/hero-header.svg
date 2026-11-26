@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="154" viewBox="0 0 880 154">
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      .pulse { animation: p 2s ease-in-out infinite; }
+      @keyframes p { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+      .beam { animation: b 6s ease-in-out infinite; }
+      @keyframes b { 0%, 100% { transform: translateX(-180px); opacity: 0.2; } 50% { transform: translateX(620px); opacity: 0.85; } }
+    </style>
+    <pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#21262d"/>
+    </pattern>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f0f6fc"/>
+      <stop offset="65%" stop-color="#e6edf3"/>
+      <stop offset="100%" stop-color="#7ee787"/>
+    </linearGradient>
+    <linearGradient id="lineGlow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#39d353" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#39d353" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#58a6ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="878" height="152" rx="10" fill="#0d1117" stroke="#21262d" stroke-width="1.5"/>
+  <rect x="2" y="2" width="876" height="150" rx="9" fill="url(#dots)" opacity="0.65"/>
+
+  <!-- Feixe luminoso sutil no topo -->
+  <rect class="beam" x="40" y="1" width="240" height="2" fill="url(#lineGlow)"/>
+
+  <!-- Badge de Status -->
+  <rect x="34" y="24" width="212" height="24" rx="12" fill="#161b22" stroke="#30363d"/>
+  <circle cx="48" cy="36" r="4" fill="#39d353" class="pulse"/>
+  <text x="60" y="40" class="mono" font-size="11" font-weight="600" fill="#7ee787">EXP.DEV · ONLINE</text>
+  <text x="174" y="40" class="mono" font-size="11" fill="#8b949e">// BR</text>
+
+  <!-- Nome Principal e Especialidade -->
+  <text x="34" y="88" class="sans" font-size="38" font-weight="800" fill="url(#titleGrad)" letter-spacing="-0.5">Iago Expedito</text>
+  <text x="34" y="116" class="mono" font-size="13.5" font-weight="600" fill="#39d353">Product Architect &amp; Software Engineer</text>
+  <text x="342" y="116" class="sans" font-size="13" fill="#8b949e">·  Arquitetura de Produto, IA Generativa &amp; Dados</text>
+
+  <!-- Cards Minimalistas de Métricas à Direita -->
+  <g transform="translate(620, 36)">
+    <rect width="108" height="82" rx="8" fill="#161b22" stroke="#21262d"/>
+    <text x="54" y="38" class="sans" font-size="26" font-weight="800" fill="#f0f6fc" text-anchor="middle">14</text>
+    <text x="54" y="60" class="mono" font-size="10" fill="#8b949e" text-anchor="middle">REPOSITÓRIOS</text>
+  </g>
+  <g transform="translate(740, 36)">
+    <rect width="108" height="82" rx="8" fill="#161b22" stroke="#21262d"/>
+    <text x="54" y="38" class="sans" font-size="26" font-weight="800" fill="#39d353" text-anchor="middle">89</text>
+    <text x="54" y="60" class="mono" font-size="10" fill="#8b949e" text-anchor="middle">COMMITS / ANO</text>
+  </g>
+</svg>

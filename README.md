@@ -1,26 +1,19 @@
 <div align="center">
 
-<img src="./assets/tv-truman-grid.gif?v=4" width="680" alt="Estúdio Canal 04 — Vico-04 na grade 2.5D de contribuições reais" />
+<img src="./assets/hero-header.svg?v=5" width="100%" alt="Iago Expedito — Product Architect & Software Engineer" />
 
 <br/><br/>
 
-<img src="./assets/console-deck.svg?v=4" width="860" alt="Console de Estúdio — Iago Expedito, Product Architect & Software Engineer" />
+<img src="./assets/commit-game.svg?v=5" width="100%" alt="Commit Breaker — Jogo arcade em tempo real destruindo meus commits reais do GitHub" />
 
 <br/><br/>
 
-<a href="https://github.com/expeditodeviago?tab=repositories"><img src="./assets/sw-repos.svg?v=4" width="32%" alt="Todos os Projetos" /></a>
-<a href="https://www.linkedin.com/in/iago-expedito-cristino-martins-duarte-3628531b2/"><img src="./assets/sw-linkedin.svg?v=4" width="32%" alt="LinkedIn" /></a>
-<a href="https://www.instagram.com/iagoexpedito/"><img src="./assets/sw-insta.svg?v=4" width="32%" alt="Instagram" /></a>
+<img src="./assets/stack-hud.svg?v=5" width="100%" alt="Stack Tecnológica — TypeScript, Python, React, Next.js, FastAPI, Dados e IA" />
 
 <br/><br/>
 
-<details>
-  <summary><sub>📡 <b>Sinal do Canal 04</b> — como esta transmissão funciona nos bastidores</sub></summary>
-  <br/>
-  <sub>
-    A grade 2.5D dentro da TV reflete minhas <b>contribuições reais</b> das últimas 18 semanas no GitHub, atualizadas automaticamente toda madrugada via GitHub Actions.<br/>
-    <i>"Caso eu não te veja mais... bom dia, boa tarde e boa noite."</i>
-  </sub>
-</details>
+<a href="https://github.com/expeditodeviago?tab=repositories"><img src="./assets/btn-repos.svg?v=5" width="32.5%" alt="Explorar Repositórios" /></a>
+<a href="https://www.linkedin.com/in/iago-expedito-cristino-martins-duarte-3628531b2/"><img src="./assets/btn-linkedin.svg?v=5" width="32.5%" alt="LinkedIn" /></a>
+<a href="https://www.instagram.com/iagoexpedito/"><img src="./assets/btn-insta.svg?v=5" width="32.5%" alt="Instagram" /></a>
 
 </div>

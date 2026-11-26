@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="284" height="46" viewBox="0 0 284 46">
+  <style>
+    .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+  </style>
+  <rect x="1" y="1" width="282" height="44" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.2"/>
+  <circle cx="22" cy="23" r="4.5" fill="#d2a8ff"/>
+  <text x="36" y="27" class="sans" font-size="13" font-weight="700" fill="#f0f6fc">Instagram</text>
+  <text x="266" y="27" class="mono" font-size="11" fill="#8b949e" text-anchor="end">@iagoexpedito ↗</text>
+</svg>
