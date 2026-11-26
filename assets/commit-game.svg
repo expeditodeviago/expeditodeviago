@@ -84,7 +84,7 @@
 <line x1="1" y1="41" x2="879" y2="41" stroke="#1e293b" stroke-width="1"/>
 <path d="M14 52 L14 46 L20 46 M866 52 L866 46 L860 46 M14 274 L14 280 L20 280 M866 274 L866 280 L860 280" stroke="#38bdf8" stroke-width="1.5" fill="none" opacity="0.7"/>
 <text x="22" y="25" class="mono" font-size="12" font-weight="700" fill="#38bdf8" letter-spacing="1">◈ DIANA // LUNAFILAMENT COMMIT MATRIX</text>
-<text x="316" y="25" class="txt" font-size="11.5" fill="#94a3b8">·  91 commits reais em simulação</text>
+<text x="316" y="25" class="txt" font-size="11.5" fill="#94a3b8">·  93 commits reais em simulação</text>
 <g transform="translate(510, 9)">
   <rect width="164" height="23" rx="11.5" fill="#090e18" stroke="#334155"/>
   <text id="mRic" x="82" y="15.5" class="mono" font-size="10.5" font-weight="700" fill="#39d353" text-anchor="middle">● ORBITAL BREAKER</text>

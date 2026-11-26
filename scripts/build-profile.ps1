@@ -160,18 +160,64 @@ public class PragmataSuiteBuilder
                 }
             }
 
-            // Render Diana & Hugh Cleanly Framed on Right (skipping 6px border so ZERO vertical seam!)
-            using (Bitmap chars = new Bitmap(charsPath))
+            // Render Diana & Hugh Cleanly Framed on Right (Flood-Fill Exterior White Removal!)
+            using (Bitmap rawChars = new Bitmap(charsPath))
+            using (Bitmap chars = new Bitmap(rawChars.Width, rawChars.Height, PixelFormat.Format32bppArgb))
             {
-                int cropX = 8;
-                int cropW = chars.Width - 16;
-                int cropH = (int)(chars.Height * 0.80);
-                int targetH = 488;
-                int targetW = (int)(cropW * ((double)targetH / cropH));
-                int drawX = W - targetW + 128; // shifted right so Diana's hand frames beside the pods!
+                using (Graphics cg = Graphics.FromImage(chars))
+                    cg.DrawImage(rawChars, 0, 0, rawChars.Width, rawChars.Height);
+
+                int cw = chars.Width, ch = chars.Height;
+                Rectangle rect = new Rectangle(0, 0, cw, ch);
+                BitmapData bd = chars.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+                int stride = Math.Abs(bd.Stride);
+                byte[] buf = new byte[stride * ch];
+                System.Runtime.InteropServices.Marshal.Copy(bd.Scan0, buf, 0, buf.Length);
+
+                // Exterior flood-fill so Hugh's interior white suit stays 100% solid!
+                bool[] visited = new bool[cw * ch];
+                Queue<int> q = new Queue<int>(65536);
+                for (int x = 0; x < cw; x++) { q.Enqueue(x); visited[x] = true; }
+                for (int y = 0; y < ch; y++)
+                {
+                    int li = y * cw, ri = y * cw + (cw - 1);
+                    if (!visited[li]) { visited[li] = true; q.Enqueue(li); }
+                    if (!visited[ri]) { visited[ri] = true; q.Enqueue(ri); }
+                }
+
+                while (q.Count > 0)
+                {
+                    int idx = q.Dequeue();
+                    int px = idx % cw, py = idx / cw;
+                    int off = py * stride + px * 4;
+                    int b = buf[off], gr = buf[off + 1], r = buf[off + 2];
+                    int lum = (r + gr + b) / 3;
+                    int sat = Math.Max(r, Math.Max(gr, b)) - Math.Min(r, Math.Min(gr, b));
+
+                    if (lum > 232 && sat < 18)
+                    {
+                        buf[off + 3] = 0; // exterior backdrop -> transparent!
+                        if (px > 0 && !visited[idx - 1]) { visited[idx - 1] = true; q.Enqueue(idx - 1); }
+                        if (px < cw - 1 && !visited[idx + 1]) { visited[idx + 1] = true; q.Enqueue(idx + 1); }
+                        if (py > 0 && !visited[idx - cw]) { visited[idx - cw] = true; q.Enqueue(idx - cw); }
+                        if (py < ch - 1 && !visited[idx + cw]) { visited[idx + cw] = true; q.Enqueue(idx + cw); }
+                    }
+                    else if (lum > 195 && sat < 26)
+                    {
+                        // Soft anti-aliased edge feathering on hair/silhouette!
+                        buf[off + 3] = (byte)Math.Max(0, Math.Min(255, (242 - lum) * 5));
+                    }
+                }
+                System.Runtime.InteropServices.Marshal.Copy(buf, 0, bd.Scan0, buf.Length);
+                chars.UnlockBits(bd);
+
+                int cropH = (int)(ch * 0.80);
+                int targetH = 492;
+                int targetW = (int)(cw * ((double)targetH / cropH));
+                int drawX = W - targetW + 128;
                 int drawY = H - targetH + 8;
                 g.DrawImage(chars, new Rectangle(drawX, drawY, targetW, targetH),
-                    new Rectangle(cropX, 0, cropW, cropH), GraphicsUnit.Pixel);
+                    new Rectangle(0, 0, cw, cropH), GraphicsUnit.Pixel);
             }
 
             // Seamless Bottom Vignette into GitHub #0d1117
