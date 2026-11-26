@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PRAGMATA // EXP.DEV — Interactive Commit Protocol</title>
+<style>
+  :root {
+    --bg: #070b12;
+    --glass: rgba(11, 18, 31, 0.82);
+    --border: rgba(56, 189, 248, 0.28);
+    --cyan: #38bdf8;
+    --cyan-hi: #a5f3fc;
+    --emerald: #39d353;
+    --gold: #f0b429;
+    --red: #fb7185;
+    --text: #f0f6fc;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    min-height: 100vh;
+    background: var(--bg) url('./lunar-bg.jpg') center top / cover no-repeat fixed;
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 40px;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 50% 20%, rgba(10, 17, 30, 0.68), rgba(6, 10, 18, 0.94));
+    z-index: 0;
+  }
+  .shell {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1040px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--glass);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .pulse-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--emerald);
+    box-shadow: 0 0 12px var(--emerald);
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .brand-title { font-family: Consolas, monospace; font-size: 14px; letter-spacing: 1.5px; color: var(--cyan); font-weight: 700; }
+  .brand-sub { font-size: 13px; color: var(--muted); }
+  .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(15, 23, 42, 0.85);
+    color: var(--text);
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { border-color: var(--cyan); color: var(--cyan-hi); transform: translateY(-1px); box-shadow: 0 0 16px rgba(56, 189, 248, 0.25); }
+  .btn.active {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.24), rgba(57, 211, 83, 0.18));
+    border-color: var(--cyan);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.32);
+  }
+  .hud-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    background: var(--glass);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .modes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stats { display: flex; gap: 20px; font-family: Consolas, monospace; font-size: 13px; align-items: center; }
+  .stat-lbl { color: var(--muted); font-size: 11px; display: block; }
+  .stat-val { font-size: 18px; font-weight: 700; color: var(--cyan-hi); }
+  .stat-val.green { color: var(--emerald); }
+  .stat-val.gold { color: var(--gold); }
+
+  .arena-wrap {
+    position: relative;
+    background: rgba(8, 12, 21, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 0 40px rgba(56, 189, 248, 0.06);
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 10px;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .instructions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 18px;
+    background: var(--glass);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .kbd {
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: var(--cyan-hi);
+    font-family: Consolas, monospace;
+    font-size: 11.5px;
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <span class="pulse-dot"></span>
+        <div>
+          <div class="brand-title">◈ PRAGMATA // LUNAFILAMENT COMMIT TERMINAL</div>
+          <div class="brand-sub">Iago Expedito (Exp.dev) — Jogue diretamente com os meus commits reais do GitHub</div>
+        </div>
+      </div>
+      <div class="nav-links">
+        <button class="btn" id="soundBtn">🔊 ÁUDIO: ON</button>
+        <a class="btn" href="https://github.com/expeditodeviago?tab=repositories" target="_blank">📂 Ver Repositórios ↗</a>
+        <a class="btn" href="https://github.com/expeditodeviago" target="_blank">⬅ Voltar ao Perfil</a>
+      </div>
+    </div>
+
+    <div class="hud-bar">
+      <div class="modes">
+        <button class="btn active" id="modeBreaker">⚡ MODO HUGH: ORBITAL BREAKER (Mouse / Teclado)</button>
+        <button class="btn" id="modeDiana">◈ MODO DIANA: HACKING MATRIX (Arrastar Rota)</button>
+        <button class="btn" id="resetBtn">↻ Reiniciar Grade</button>
+      </div>
+      <div class="stats">
+        <div><span class="stat-lbl">COMMITS RESTANTES</span><span class="stat-val green" id="remVal">--</span></div>
+        <div><span class="stat-lbl">COMBO</span><span class="stat-val gold" id="comboVal">x1</span></div>
+        <div><span class="stat-lbl">SCORE</span><span class="stat-val" id="scoreVal">00000</span></div>
+        <div><span class="stat-lbl">HI-SCORE</span><span class="stat-val gold" id="hiVal">00000</span></div>
+      </div>
+    </div>
+
+    <div class="arena-wrap">
+      <canvas id="game" width="980" height="440"></canvas>
+    </div>
+
+    <div class="instructions" id="helpBar">
+      <div>
+        <span class="kbd">Mouse</span> ou <span class="kbd">←</span> <span class="kbd">→</span> / <span class="kbd">A</span> <span class="kbd">D</span> move a plataforma lunar ·
+        <span class="kbd">Clique</span> ou <span class="kbd">Espaço</span> lança a esfera / dispara lasers quando o power-up <span class="kbd">⚡LZR</span> estiver ativo!
+      </div>
+      <div id="hoverInfo" style="font-family:Consolas,monospace;color:#38bdf8;">Passe o mouse nos blocos para ver a data real do commit</div>
+    </div>
+  </div>
+
+<script src="./commits-data.js"></script>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const remEl = document.getElementById('remVal');
+  const comboEl = document.getElementById('comboVal');
+  const scoreEl = document.getElementById('scoreVal');
+  const hiEl = document.getElementById('hiVal');
+  const hoverEl = document.getElementById('hoverInfo');
+  const helpBar = document.getElementById('helpBar');
+
+  let soundOn = true;
+  let audioCtx = null;
+  function beep(freq, dur = 0.07, type = 'sine', gain = 0.08) {
+    if (!soundOn) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      g.gain.setValueAtTime(gain, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch {}
+  }
+
+  document.getElementById('soundBtn').onclick = (e) => {
+    soundOn = !soundOn;
+    e.target.textContent = soundOn ? '🔊 ÁUDIO: ON' : '🔇 ÁUDIO: OFF';
+  };
+
+  // Dados reais injetados por commits-data.js
+  const raw = window.COMMIT_CALENDAR || { total: 89, months: [], cells: [] };
+  const GX0 = 54, GY0 = 56, CELL = 13, PITCH = 16.8;
+  const LEVEL_COLORS = ['#141c2b', '#0e4429', '#006d32', '#26a641', '#39d353'];
+
+  let mode = 'breaker'; // 'breaker' | 'diana'
+  let score = 0, combo = 1;
+  let hiScore = parseInt(localStorage.getItem('pragmata_exp_hi') || '0', 10);
+  hiEl.textContent = String(hiScore).padStart(5, '0');
+
+  let cells = [];
+  let particles = [];
+  let balls = [];
+  let capsules = [];
+  let lasers = [];
+  let paddle = { x: W / 2, y: H - 38, w: 108, h: 11, laserTimer: 0 };
+  let keys = {};
+
+  // Estado Modo Diana Hacking
+  let hackingPath = [];
+  let isDragging = false;
+  let dianaPulse = 0;
+
+  function addScore(pts) {
+    score += pts * combo;
+    if (score > hiScore) {
+      hiScore = score;
+      localStorage.setItem('pragmata_exp_hi', String(hiScore));
+      hiEl.textContent = String(hiScore).padStart(5, '0');
+    }
+    scoreEl.textContent = String(score).padStart(5, '0');
+    comboEl.textContent = 'x' + combo;
+  }
+
+  function spawnParticles(x, y, color, count = 14) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1.2 + Math.random() * 4.2;
+      particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, color });
+    }
+  }
+
+  function initBoard() {
+    cells = [];
+    particles = [];
+    capsules = [];
+    lasers = [];
+    hackingPath = [];
+    combo = 1;
+    comboEl.textContent = 'x1';
+
+    const src = raw.cells && raw.cells.length ? raw.cells : [];
+    for (let i = 0; i < src.length; i++) {
+      const c = src[i];
+      if (c.level < 0) continue;
+      const x = GX0 + c.w * PITCH;
+      const y = GY0 + c.d * PITCH;
+      cells.push({
+        w: c.w, d: c.d, date: c.date,
+        baseLevel: c.level,
+        hp: c.level > 0 ? 1 : 0,
+        level: c.level,
+        x, y, cx: x + CELL / 2, cy: y + CELL / 2,
+        hacked: false
+      });
+    }
+
+    // Se por acaso vier vazio, criar nós de demonstração
+    if (!cells.some(c => c.hp > 0)) {
+      for (let w = 0; w < 53; w++) {
+        for (let d = 0; d < 7; d++) {
+          const lv = ((w * 7 + d) % 11 === 0) ? 4 : 0;
+          const x = GX0 + w * PITCH, y = GY0 + d * PITCH;
+          cells.push({ w, d, date: '2026', baseLevel: lv, hp: lv ? 1 : 0, level: lv, x, y, cx: x + CELL / 2, cy: y + CELL / 2, hacked: false });
+        }
+      }
+    }
+
+    balls = [{ x: paddle.x, y: paddle.y - 9, vx: 4.2, vy: -5.4, stuck: true, trail: [] }];
+    updateRem();
+  }
+
+  function updateRem() {
+    const alive = cells.filter(c => c.hp > 0).length;
+    remEl.textContent = alive;
+    return alive;
+  }
+
+  function launchOrShoot() {
+    let launched = false;
+    for (const b of balls) {
+      if (b.stuck) {
+        b.stuck = false;
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+        b.vx = Math.cos(angle) * 6.4;
+        b.vy = Math.sin(angle) * 6.4;
+        launched = true;
+        beep(520, 0.09, 'triangle');
+      }
+    }
+    if (!launched && paddle.laserTimer > 0) {
+      lasers.push({ x: paddle.x - 34, y: paddle.y - 6 });
+      lasers.push({ x: paddle.x + 34, y: paddle.y - 6 });
+      beep(880, 0.05, 'sawtooth', 0.05);
+    }
+  }
+
+  // Controles Mouse / Touch / Teclado
+  function getCanvasPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - r.left) * (W / r.width),
+      y: (clientY - r.top) * (H / r.height)
+    };
+  }
+
+  canvas.addEventListener('mousemove', (e) => {
+    const p = getCanvasPos(e);
+    paddle.x = Math.max(paddle.w / 2 + 16, Math.min(W - paddle.w / 2 - 16, p.x));
+
+    // Mostrar data do commit sob o cursor
+    const hit = cells.find(c => p.x >= c.x && p.x <= c.x + CELL && p.y >= c.y && p.y <= c.y + CELL);
+    if (hit) {
+      hoverEl.textContent = `📅 ${hit.date} · ${hit.baseLevel > 0 ? 'Commit ativo (Nível ' + hit.baseLevel + ')' : 'Sem commits neste dia'}`;
+    }
+
+    if (mode === 'diana' && isDragging) {
+      tryAddDianaNode(p.x, p.y);
+    }
+  });
+
+  canvas.addEventListener('mousedown', (e) => {
+    const p = getCanvasPos(e);
+    if (mode === 'breaker') {
+      launchOrShoot();
+    } else {
+      isDragging = true;
+      hackingPath = [];
+      cells.forEach(c => c.hacked = false);
+      tryAddDianaNode(p.x, p.y);
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (mode === 'diana' && isDragging) {
+      isDragging = false;
+      executeDianaHack();
+    }
+  });
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const p = getCanvasPos(e);
+    paddle.x = Math.max(paddle.w / 2 + 16, Math.min(W - paddle.w / 2 - 16, p.x));
+    if (mode === 'breaker') launchOrShoot();
+    else { isDragging = true; hackingPath = []; cells.forEach(c => c.hacked = false); tryAddDianaNode(p.x, p.y); }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const p = getCanvasPos(e);
+    paddle.x = Math.max(paddle.w / 2 + 16, Math.min(W - paddle.w / 2 - 16, p.x));
+    if (mode === 'diana' && isDragging) tryAddDianaNode(p.x, p.y);
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => {
+    if (mode === 'diana' && isDragging) { isDragging = false; executeDianaHack(); }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.code === 'Space' && mode === 'breaker') { e.preventDefault(); launchOrShoot(); }
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+  function tryAddDianaNode(px, py) {
+    // Encontrar qualquer célula (ou commit vivo próximo num raio de 18px) para roteamento estilo Pragmata!
+    let best = null, bestD = 22;
+    for (const c of cells) {
+      const dist = Math.hypot(c.cx - px, c.cy - py);
+      if (dist < bestD) { bestD = dist; best = c; }
+    }
+    if (!best || best.hacked) return;
+    if (hackingPath.length > 0) {
+      const prev = hackingPath[hackingPath.length - 1];
+      if (Math.hypot(best.w - prev.w, best.d - prev.d) > 6) return; // alcance máximo de salto neural
+    }
+    best.hacked = true;
+    hackingPath.push(best);
+    beep(360 + hackingPath.length * 45, 0.06, 'sine', 0.06);
+  }
+
+  function executeDianaHack() {
+    const greenHits = hackingPath.filter(c => c.hp > 0);
+    if (greenHits.length > 0) {
+      combo = greenHits.length;
+      for (const c of greenHits) {
+        c.hp = 0;
+        spawnParticles(c.cx, c.cy, '#38bdf8', 18);
+        addScore(150);
+      }
+      beep(740, 0.18, 'triangle', 0.12);
+      updateRem();
+    }
+    setTimeout(() => { cells.forEach(c => c.hacked = false); hackingPath = []; }, 260);
+  }
+
+  document.getElementById('modeBreaker').onclick = (e) => {
+    mode = 'breaker';
+    e.target.classList.add('active');
+    document.getElementById('modeDiana').classList.remove('active');
+    helpBar.firstElementChild.innerHTML = '<span class="kbd">Mouse</span> ou <span class="kbd">←</span> <span class="kbd">→</span> / <span class="kbd">A</span> <span class="kbd">D</span> move a plataforma lunar · <span class="kbd">Clique</span> ou <span class="kbd">Espaço</span> lança a esfera / dispara lasers!';
+    initBoard();
+  };
+
+  document.getElementById('modeDiana').onclick = (e) => {
+    mode = 'diana';
+    e.target.classList.add('active');
+    document.getElementById('modeBreaker').classList.remove('active');
+    helpBar.firstElementChild.innerHTML = '◈ <b>PROTOCOLO DIANA (PRAGMATA):</b> Clique e <b>arraste uma linha contínua</b> conectando vários commits verdes próximos em uma única rota para sobrecarregá-los em cadeia!';
+    initBoard();
+  };
+
+  document.getElementById('resetBtn').onclick = () => { score = 0; scoreEl.textContent = '00000'; initBoard(); };
+
+  function step() {
+    dianaPulse += 0.06;
+
+    if (mode === 'breaker') {
+      if (keys['arrowleft'] || keys['a']) paddle.x = Math.max(paddle.w / 2 + 16, paddle.x - 8);
+      if (keys['arrowright'] || keys['d']) paddle.x = Math.min(W - paddle.w / 2 - 16, paddle.x + 8);
+      if (paddle.laserTimer > 0) {
+        paddle.laserTimer--;
+        if (paddle.laserTimer % 18 === 0) {
+          lasers.push({ x: paddle.x - 34, y: paddle.y - 6 });
+          lasers.push({ x: paddle.x + 34, y: paddle.y - 6 });
+        }
+      }
+
+      // Atualizar bolas
+      for (let bi = balls.length - 1; bi >= 0; bi--) {
+        const b = balls[bi];
+        if (b.stuck) {
+          b.x = paddle.x; b.y = paddle.y - 9;
+          continue;
+        }
+        b.trail.push({ x: b.x, y: b.y });
+        if (b.trail.length > 8) b.trail.shift();
+
+        b.x += b.vx; b.y += b.vy;
+        if (b.x < 18) { b.x = 18; b.vx = Math.abs(b.vx); beep(260, 0.04); }
+        if (b.x > W - 18) { b.x = W - 18; b.vx = -Math.abs(b.vx); beep(260, 0.04); }
+        if (b.y < 24) { b.y = 24; b.vy = Math.abs(b.vy); beep(290, 0.04); }
+
+        // Colisão com a plataforma
+        if (b.vy > 0 && b.y + 6 >= paddle.y && b.y - 6 <= paddle.y + paddle.h &&
+            b.x >= paddle.x - paddle.w / 2 - 6 && b.x <= paddle.x + paddle.w / 2 + 6) {
+          const hitOffset = (b.x - paddle.x) / (paddle.w / 2);
+          const speed = Math.min(9.2, Math.hypot(b.vx, b.vy) * 1.015);
+          const ang = -Math.PI / 2 + hitOffset * 0.95;
+          b.vx = Math.cos(ang) * speed;
+          b.vy = Math.sin(ang) * speed;
+          b.y = paddle.y - 7;
+          combo = 1;
+          comboEl.textContent = 'x1';
+          beep(440, 0.06, 'triangle');
+        }
+
+        // Colisão com commits verdes reais
+        for (const c of cells) {
+          if (c.hp <= 0) continue;
+          if (b.x + 5 >= c.x && b.x - 5 <= c.x + CELL && b.y + 5 >= c.y && b.y - 5 <= c.y + CELL) {
+            c.hp = 0;
+            b.vy = -b.vy;
+            addScore(100 * c.baseLevel);
+            combo++;
+            spawnParticles(c.cx, c.cy, c.baseLevel >= 3 ? '#39d353' : '#38bdf8', 15);
+            beep(520 + combo * 35, 0.07, 'sine', 0.09);
+
+            // Chance de dropar Power-Up Lunafilament!
+            if (Math.random() < 0.34) {
+              capsules.push({
+                x: c.cx, y: c.cy,
+                type: Math.random() < 0.55 ? 'laser' : 'multi'
+              });
+            }
+            updateRem();
+            break;
+          }
+        }
+
+        if (b.y > H + 20) {
+          balls.splice(bi, 1);
+        }
+      }
+
+      if (balls.length === 0) {
+        combo = 1; comboEl.textContent = 'x1';
+        balls.push({ x: paddle.x, y: paddle.y - 9, vx: 4, vy: -5.5, stuck: true, trail: [] });
+      }
+
+      // Cápsulas Power-Up
+      for (let i = capsules.length - 1; i >= 0; i--) {
+        const cap = capsules[i];
+        cap.y += 2.8;
+        if (cap.y >= paddle.y - 8 && cap.y <= paddle.y + 16 && Math.abs(cap.x - paddle.x) <= paddle.w / 2 + 16) {
+          if (cap.type === 'laser') {
+            paddle.laserTimer = 360;
+          } else {
+            const ref = balls[0] || { x: paddle.x, y: paddle.y - 12 };
+            balls.push({ x: ref.x, y: ref.y, vx: -4.8, vy: -5.6, stuck: false, trail: [] });
+            balls.push({ x: ref.x, y: ref.y, vx: 4.8, vy: -5.6, stuck: false, trail: [] });
+          }
+          beep(780, 0.14, 'square', 0.08);
+          capsules.splice(i, 1);
+        } else if (cap.y > H + 20) {
+          capsules.splice(i, 1);
+        }
+      }
+
+      // Lasers
+      for (let i = lasers.length - 1; i >= 0; i--) {
+        const lz = lasers[i];
+        lz.y -= 11;
+        let hit = false;
+        for (const c of cells) {
+          if (c.hp > 0 && lz.x >= c.x - 2 && lz.x <= c.x + CELL + 2 && lz.y >= c.y && lz.y <= c.y + CELL) {
+            c.hp = 0; hit = true;
+            addScore(120);
+            spawnParticles(c.cx, c.cy, '#38bdf8', 10);
+            beep(680, 0.04, 'sine', 0.05);
+            updateRem();
+            break;
+          }
+        }
+        if (hit || lz.y < 10) lasers.splice(i, 1);
+      }
+    }
+
+    // Partículas
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.life -= 0.032;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    draw();
+    requestAnimationFrame(step);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Grade tática de fundo Pragmata
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    // Rótulos de meses reais
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Segoe UI, sans-serif';
+    if (raw.months) {
+      for (const m of raw.months) {
+        ctx.fillText(m.name, GX0 + m.col * PITCH, 44);
+      }
+    }
+    ctx.fillText('Seg', 20, GY0 + 1 * PITCH + 10);
+    ctx.fillText('Qua', 20, GY0 + 3 * PITCH + 10);
+    ctx.fillText('Sex', 20, GY0 + 5 * PITCH + 10);
+
+    // Desenhar todos os 371 dias do calendário real
+    for (const c of cells) {
+      ctx.beginPath();
+      ctx.roundRect(c.x, c.y, CELL, CELL, 3);
+      if (c.hp > 0) {
+        ctx.fillStyle = LEVEL_COLORS[c.level] || '#39d353';
+        ctx.fill();
+        if (c.level >= 3) {
+          ctx.strokeStyle = 'rgba(126, 231, 135, 0.55)';
+          ctx.stroke();
+        }
+        if (mode === 'diana') {
+          // Brilho de nó hackeável no Modo Diana
+          ctx.strokeStyle = `rgba(56, 189, 248, ${0.35 + Math.sin(dianaPulse + c.w * 0.3) * 0.25})`;
+          ctx.strokeRect(c.x - 1, c.y - 1, CELL + 2, CELL + 2);
+        }
+      } else {
+        ctx.fillStyle = 'rgba(22, 27, 34, 0.72)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(48, 54, 61, 0.5)';
+        ctx.stroke();
+      }
+
+      if (c.hacked) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(c.x - 2, c.y - 2, CELL + 4, CELL + 4);
+        ctx.lineWidth = 1;
+      }
+    }
+
+    // Linha de Hacking da Diana
+    if (hackingPath.length > 1) {
+      ctx.save();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(hackingPath[0].cx, hackingPath[0].cy);
+      for (let i = 1; i < hackingPath.length; i++) ctx.lineTo(hackingPath[i].cx, hackingPath[i].cy);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (mode === 'breaker') {
+      // Plataforma Delphi Lunar
+      ctx.save();
+      const grad = ctx.createLinearGradient(paddle.x - paddle.w / 2, 0, paddle.x + paddle.w / 2, 0);
+      if (paddle.laserTimer > 0) {
+        grad.addColorStop(0, '#0284c7'); grad.addColorStop(0.5, '#a5f3fc'); grad.addColorStop(1, '#0284c7');
+        ctx.shadowColor = '#38bdf8';
+      } else {
+        grad.addColorStop(0, '#2ea043'); grad.addColorStop(0.5, '#7ee787'); grad.addColorStop(1, '#2ea043');
+        ctx.shadowColor = '#39d353';
+      }
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 5.5);
+      ctx.fill();
+      ctx.restore();
+
+      // Bolas + Rastro
+      for (const b of balls) {
+        for (let i = 0; i < b.trail.length; i++) {
+          const t = b.trail[i];
+          ctx.fillStyle = `rgba(56, 189, 248, ${(i / b.trail.length) * 0.42})`;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 2 + (i / b.trail.length) * 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.save();
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Cápsulas Power-Up
+      for (const cap of capsules) {
+        ctx.fillStyle = cap.type === 'laser' ? '#0284c7' : '#ca8a04';
+        ctx.strokeStyle = '#e0f2fe';
+        ctx.beginPath();
+        ctx.roundRect(cap.x - 18, cap.y - 8, 36, 16, 8);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px Consolas, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(cap.type === 'laser' ? '⚡LZR' : '◈x3', cap.x, cap.y + 3.5);
+        ctx.textAlign = 'start';
+      }
+
+      // Lasers
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5;
+      for (const lz of lasers) {
+        ctx.beginPath(); ctx.moveTo(lz.x, lz.y); ctx.lineTo(lz.x, lz.y + 14); ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+    }
+
+    // Partículas
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Mensagem de Vitória quando todos os commits reais forem conquistados!
+    if (cells.length > 0 && !cells.some(c => c.hp > 0)) {
+      ctx.fillStyle = 'rgba(11, 18, 31, 0.88)';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 220, H / 2 - 42, 440, 84, 16);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#a5f3fc';
+      ctx.font = 'bold 20px Consolas, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('★ LUNAFILAMENT OVERLOAD 100% ★', W / 2, H / 2 - 6);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px Segoe UI, sans-serif';
+      ctx.fillText('Todos os commits reais foram conquistados! Clique em Reiniciar Grade.', W / 2, H / 2 + 22);
+      ctx.textAlign = 'start';
+    }
+  }
+
+  initBoard();
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>

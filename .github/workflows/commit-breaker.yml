@@ -1,4 +1,4 @@
-name: Atualizar Commit Breaker
+name: Atualizar Pragmata Commit Protocol
 
 on:
   schedule:
@@ -18,16 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Simular partida sobre os commits reais do dia
+      - name: Atualizar Banner, Matriz SVG e Dados do Jogo Interativo
         shell: powershell
         run: ./scripts/build-profile.ps1 -User "${{ github.repository_owner }}"
 
-      - name: Commitar se o mapa mudou
+      - name: Commitar se houver novos commits
         shell: bash
         run: |
           git config user.name "Iago Expedito"
           git config user.email "261275987+expeditodeviago@users.noreply.github.com"
-          git add assets/
+          git add assets/ docs/commits-data.js
           git diff --cached --quiet && echo "Sem mudancas nos commits." && exit 0
-          git commit -m "chore(game): atualizar partida do Commit Breaker com novos commits"
+          git commit -m "chore(pragmata): atualizar matriz e jogo interativo com novos commits"
           git push
