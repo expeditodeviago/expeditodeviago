@@ -84,7 +84,7 @@
 <line x1="1" y1="41" x2="879" y2="41" stroke="#1e293b" stroke-width="1"/>
 <path d="M14 52 L14 46 L20 46 M866 52 L866 46 L860 46 M14 274 L14 280 L20 280 M866 274 L866 280 L860 280" stroke="#38bdf8" stroke-width="1.5" fill="none" opacity="0.7"/>
 <text x="22" y="25" class="mono" font-size="12" font-weight="700" fill="#38bdf8" letter-spacing="1">◈ DIANA // LUNAFILAMENT COMMIT MATRIX</text>
-<text x="316" y="25" class="txt" font-size="11.5" fill="#94a3b8">·  94 commits reais em simulação</text>
+<text x="316" y="25" class="txt" font-size="11.5" fill="#94a3b8">·  95 commits reais em simulação</text>
 <g transform="translate(510, 9)">
   <rect width="164" height="23" rx="11.5" fill="#090e18" stroke="#334155"/>
   <text id="mRic" x="82" y="15.5" class="mono" font-size="10.5" font-weight="700" fill="#39d353" text-anchor="middle">● ORBITAL BREAKER</text>
@@ -477,6 +477,7 @@
 <rect x="828" y="100" width="12" height="12" rx="2.5" fill="#121926" stroke="#1e293b" stroke-width="0.8"/>
 <rect x="828" y="115" width="12" height="12" rx="2.5" fill="#121926" stroke="#1e293b" stroke-width="0.8"/>
 <rect x="828" y="130" width="12" height="12" rx="2.5" fill="#121926" stroke="#1e293b" stroke-width="0.8"/>
+<rect x="828" y="145" width="12" height="12" rx="2.5" fill="#121926" stroke="#1e293b" stroke-width="0.8"/>
 <rect x="213" y="130" width="12" height="12" rx="2.5" fill="#0e4429" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="0.8" style="animation: b0 22s linear infinite;"/>
 <rect x="273" y="130" width="12" height="12" rx="2.5" fill="#0e4429" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="0.8" style="animation: b1 22s linear infinite;"/>
 <rect x="288" y="130" width="12" height="12" rx="2.5" fill="#006d32" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="0.8" style="animation: b2 22s linear infinite;"/>
